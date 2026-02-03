@@ -16,7 +16,7 @@ PhuSplitterAudioProcessor::PhuSplitterAudioProcessor()
     , editorLogger(std::make_unique<EditorLogger>())
 {
     // Initialize multiband crossover with default frequencies (will be properly configured in prepareToPlay)
-    m_multiBand.initialize(LinkwitzRiley::Slope::DB24, DEFAULT_CROSSOVER_FREQS.data(), 
+    m_multiBand.initialize(LinkwitzRiley::Slope::DB48, DEFAULT_CROSSOVER_FREQS.data(), 
                            NUM_CROSSOVER_FREQS, 44100.0f);
     
     // Log initialization
@@ -32,7 +32,7 @@ void PhuSplitterAudioProcessor::prepareToPlay(double sampleRate, int samplesPerB
     syncGlobals.updateSampleRate(sampleRate);
     
     // Configure multiband crossover with actual sample rate
-    m_multiBand.setParams(LinkwitzRiley::Slope::DB24, DEFAULT_CROSSOVER_FREQS.data(),
+    m_multiBand.setParams(LinkwitzRiley::Slope::DB48, DEFAULT_CROSSOVER_FREQS.data(),
                           NUM_CROSSOVER_FREQS, static_cast<float>(sampleRate));
     m_multiBand.reset();
 
