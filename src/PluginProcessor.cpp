@@ -6,9 +6,19 @@
 PhuArpAudioProcessor::PhuArpAudioProcessor()
     : AudioProcessor(BusesProperties()
                      .withInput("Input", juce::AudioChannelSet::stereo(), true)
-                     .withOutput("Output", juce::AudioChannelSet::create7point0(), true))
+                     .withOutput("Band 1", juce::AudioChannelSet::stereo(), true)
+                     .withOutput("Band 2", juce::AudioChannelSet::stereo(), true)
+                     .withOutput("Band 3", juce::AudioChannelSet::stereo(), true)
+                     .withOutput("Band 4", juce::AudioChannelSet::stereo(), true)
+                     .withOutput("Band 5", juce::AudioChannelSet::stereo(), true)
+                     .withOutput("Band 6", juce::AudioChannelSet::stereo(), true)
+                     .withOutput("Band 7", juce::AudioChannelSet::stereo(), true))
     , editorLogger(std::make_unique<EditorLogger>())
 {
+    // Initialize multiband crossover with default frequencies (will be properly configured in prepareToPlay)
+    m_multiBand.initialize(LinkwitzRiley::Slope::DB24, DEFAULT_CROSSOVER_FREQS.data(), 
+                           NUM_CROSSOVER_FREQS, 44100.0f);
+    
     // Log initialization
     LOG_MESSAGE(editorLogger.get(), "Audio processing plugin initialized");
 }
@@ -20,6 +30,11 @@ PhuArpAudioProcessor::~PhuArpAudioProcessor()
 void PhuArpAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     syncGlobals.updateSampleRate(sampleRate);
+    
+    // Configure multiband crossover with actual sample rate
+    m_multiBand.setParams(LinkwitzRiley::Slope::DB24, DEFAULT_CROSSOVER_FREQS.data(),
+                          NUM_CROSSOVER_FREQS, static_cast<float>(sampleRate));
+    m_multiBand.reset();
 
     // Mark the current thread as the audio thread for realtime-safe logging.
     if (editorLogger)
@@ -50,8 +65,50 @@ void PhuArpAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
         LOG_MESSAGE(editorLogger.get(), "Processed " + juce::String(currentRun) + " audio blocks");
     }
 
-    // Basic audio processing - for now just pass through
-    // The audio is already in the buffer, so we don't need to do anything for passthrough
+    // Process stereo input through multiband crossover to 7 stereo output channels
+    const int numSamples = buffer.getNumSamples();
+    const int totalOutputChannels = getTotalNumOutputChannels();
+    
+    // We need at least stereo input
+    if (getTotalNumInputChannels() < 2)
+    {
+        syncGlobals.finishRun(numSamples);
+        return;
+    }
+    
+    // Get read pointers for stereo input (first two channels)
+    const float* inputL = buffer.getReadPointer(0);
+    const float* inputR = buffer.getReadPointer(1);
+    
+    // Process each sample through the multiband crossover
+    // Output 7 stereo bands (14 channels total)
+    std::array<float, NUM_BANDS> bandsL;
+    std::array<float, NUM_BANDS> bandsR;
+    
+    for (int i = 0; i < numSamples; ++i)
+    {
+        // Process this sample through the multiband crossover
+        m_multiBand.processSample(inputL[i], inputR[i], bandsL.data(), bandsR.data());
+        
+        // Write each band to corresponding stereo output channel pair
+        // Band 0 -> channels 0,1 (after input); Band 1 -> channels 2,3; etc.
+        for (size_t band = 0; band < NUM_BANDS; ++band)
+        {
+            const int leftChannel = static_cast<int>(band * 2);
+            const int rightChannel = leftChannel + 1;
+            
+            if (leftChannel < totalOutputChannels)
+            {
+                float* outL = buffer.getWritePointer(leftChannel);
+                outL[i] = bandsL[band];
+            }
+            if (rightChannel < totalOutputChannels)
+            {
+                float* outR = buffer.getWritePointer(rightChannel);
+                outR[i] = bandsR[band];
+            }
+        }
+    }
     
     // Mark end of processing
     syncGlobals.finishRun(buffer.getNumSamples());
@@ -85,9 +142,16 @@ bool PhuArpAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) co
     if (layouts.getMainInputChannelSet() != juce::AudioChannelSet::stereo())
         return false;
     
-    // Check if output is 7 channels (7.0)
-    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::create7point0())
+    // Check that we have 7 stereo output buses
+    if (layouts.outputBuses.size() != NUM_BANDS)
         return false;
+    
+    // Each output bus must be stereo
+    for (const auto& bus : layouts.outputBuses)
+    {
+        if (bus != juce::AudioChannelSet::stereo())
+            return false;
+    }
     
     return true;
 }
