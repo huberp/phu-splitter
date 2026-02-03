@@ -4,25 +4,17 @@
 #include "../lib/EventSource.h"
 
 PhuArpAudioProcessor::PhuArpAudioProcessor()
-    : AudioProcessor(BusesProperties()) // MIDI effect - no audio buses
-    , patternTracker(chordTracker)
-    , coordinator(chordTracker, patternTracker)
+    : AudioProcessor(BusesProperties()
+                     .withInput("Input", juce::AudioChannelSet::stereo(), true)
+                     .withOutput("Output", juce::AudioChannelSet::create7point0(), true))
     , editorLogger(std::make_unique<EditorLogger>())
 {
-    // Register coordinator as listener for DAW global events
-    syncGlobals.addEventListener(&coordinator);
-
-    // Route coordinator logs to this instance's logger
-    coordinator.setLogger(editorLogger.get());
-    
     // Log initialization
-    LOG_MESSAGE(editorLogger.get(), "PhuArp plugin initialized");
+    LOG_MESSAGE(editorLogger.get(), "Audio processing plugin initialized");
 }
 
 PhuArpAudioProcessor::~PhuArpAudioProcessor() 
 {
-    // Unregister from events
-    syncGlobals.removeEventListener(&coordinator);
 }
 
 void PhuArpAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
@@ -38,6 +30,8 @@ void PhuArpAudioProcessor::releaseResources() {}
 
 void PhuArpAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
+    juce::ScopedNoDenormals noDenormals;
+    
     // Get playhead position info
     auto playHeadPtr = getPlayHead();
     auto positionInfo = playHeadPtr ? playHeadPtr->getPosition() : juce::Optional<juce::AudioPlayHead::PositionInfo>();
@@ -56,10 +50,9 @@ void PhuArpAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
         LOG_MESSAGE(editorLogger.get(), "Processed " + juce::String(currentRun) + " audio blocks");
     }
 
-    if(syncGlobals.isDawPlaying()) {
-        // Process chord pattern coordination
-        coordinator.processBlock(midiMessages);
-    }
+    // Basic audio processing - for now just pass through
+    // The audio is already in the buffer, so we don't need to do anything for passthrough
+    
     // Mark end of processing
     syncGlobals.finishRun(buffer.getNumSamples());
 }
@@ -81,10 +74,23 @@ juce::AudioProcessorEditor* PhuArpAudioProcessor::createEditor()
 bool PhuArpAudioProcessor::hasEditor() const { return true; }
 
 const juce::String PhuArpAudioProcessor::getName() const { return "PhuArp"; }
-bool PhuArpAudioProcessor::acceptsMidi() const { return true; }
-bool PhuArpAudioProcessor::producesMidi() const { return true; }
-bool PhuArpAudioProcessor::isMidiEffect() const { return true; }
+bool PhuArpAudioProcessor::acceptsMidi() const { return false; }
+bool PhuArpAudioProcessor::producesMidi() const { return false; }
+bool PhuArpAudioProcessor::isMidiEffect() const { return false; }
 double PhuArpAudioProcessor::getTailLengthSeconds() const { return 0.0; }
+
+bool PhuArpAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
+{
+    // Check if input is stereo
+    if (layouts.getMainInputChannelSet() != juce::AudioChannelSet::stereo())
+        return false;
+    
+    // Check if output is 7 channels (7.0)
+    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::create7point0())
+        return false;
+    
+    return true;
+}
 
 int PhuArpAudioProcessor::getNumPrograms() { return 1; }
 int PhuArpAudioProcessor::getCurrentProgram() { return 0; }

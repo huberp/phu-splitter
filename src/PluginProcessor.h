@@ -2,9 +2,6 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "..\lib\SyncGlobals.h"
-#include "ChordNotesTracker.h"
-#include "PatternTracker.h"
-#include "ChordPatternCoordinator.h"
 
 class EditorLogger;
 
@@ -27,6 +24,8 @@ public:
     bool producesMidi() const override;
     bool isMidiEffect() const override;
     double getTailLengthSeconds() const override;
+    
+    bool isBusesLayoutSupported(const BusesLayout& layouts) const override;
 
     int getNumPrograms() override;
     int getCurrentProgram() override;
@@ -40,18 +39,9 @@ public:
     // Get the editor logger (for editor registration)
     EditorLogger* getEditorLogger() const { return editorLogger.get(); }
 
-    // UI-facing parameter: pass-through MIDI on other channels
-    void setPassThroughOtherMidi(bool shouldPassThrough) noexcept { coordinator.setPassThroughOtherMidi(shouldPassThrough); }
-    bool getPassThroughOtherMidi() const noexcept { return coordinator.getPassThroughOtherMidi(); }
-
 private:
     // DAW synchronization globals (each instance has its own)
     SyncGlobals syncGlobals;
-    
-    // Chord pattern processing components (each instance has its own)
-    ChordNotesTracker chordTracker;
-    PatternTracker patternTracker;
-    ChordPatternCoordinator coordinator;
     
     // Logger for editor log view
     std::unique_ptr<EditorLogger> editorLogger;
