@@ -1,4 +1,4 @@
-juce_add_plugin(phu-arp
+juce_add_plugin(phu-splitter
     PLUGIN_MANUFACTURER_CODE Phub
     PLUGIN_CODE Parp
     FORMATS VST3
@@ -9,7 +9,7 @@ juce_add_plugin(phu-arp
     IS_MIDI_EFFECT FALSE
 )
 
-target_sources(phu-arp PRIVATE
+target_sources(phu-splitter PRIVATE
     PluginProcessor.cpp
     PluginProcessor.h
     PluginEditor.cpp
@@ -18,7 +18,7 @@ target_sources(phu-arp PRIVATE
     EditorLogger.h
 )
 
-target_compile_definitions(phu-arp PUBLIC
+target_compile_definitions(phu-splitter PUBLIC
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
@@ -28,7 +28,7 @@ target_compile_definitions(phu-arp PUBLIC
     JUCE_USE_FLAC=0
 )
 
-target_link_libraries(phu-arp
+target_link_libraries(phu-splitter
     PRIVATE
         EventSystem
         juce::juce_audio_processors

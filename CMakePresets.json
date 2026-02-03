@@ -27,7 +27,7 @@
       "configurePreset": "vs2026-x64",
       "configuration": "Debug",
       "targets": [
-        "phu-arp_VST3"
+        "phu-splitter_VST3"
       ]
     },
     {
@@ -36,7 +36,7 @@
       "configurePreset": "vs2026-x64",
       "configuration": "Release",
       "targets": [
-        "phu-arp_VST3"
+        "phu-splitter_VST3"
       ]
     }
   ]
