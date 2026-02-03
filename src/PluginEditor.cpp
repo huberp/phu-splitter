@@ -5,18 +5,6 @@
 PhuArpAudioProcessorEditor::PhuArpAudioProcessorEditor(PhuArpAudioProcessor& p) 
     : AudioProcessorEditor(&p), audioProcessor(p)
 {
-    // Parameters panel
-    paramsGroup.setText("Parameters");
-    addAndMakeVisible(paramsGroup);
-
-    passThroughOtherMidiToggle.setButtonText("Pass through other MIDI (keep channels other than chord/rhythm/output)");
-    passThroughOtherMidiToggle.setToggleState(audioProcessor.getPassThroughOtherMidi(), juce::dontSendNotification);
-    passThroughOtherMidiToggle.onClick = [this]
-    {
-        audioProcessor.setPassThroughOtherMidi(passThroughOtherMidiToggle.getToggleState());
-    };
-    addAndMakeVisible(passThroughOtherMidiToggle);
-
     // Set up debug log label
     logLabel.setText("Debug Log", juce::dontSendNotification);
     logLabel.setJustificationType(juce::Justification::centredLeft);
@@ -59,14 +47,6 @@ void PhuArpAudioProcessorEditor::paint(juce::Graphics& g)
 void PhuArpAudioProcessorEditor::resized()
 {
     auto area = getLocalBounds().reduced(10);
-
-    // Params panel at top
-    auto paramsArea = area.removeFromTop(70);
-    paramsGroup.setBounds(paramsArea);
-
-    // Place controls inside the group bounds
-    auto inner = paramsGroup.getBounds().reduced(10, 25);
-    passThroughOtherMidiToggle.setBounds(inner.removeFromTop(24));
     
     // Label at top
     logLabel.setBounds(area.removeFromTop(25));

@@ -19,10 +19,6 @@ public:
 private:
     PhuArpAudioProcessor& audioProcessor;
 
-    // Parameters panel (sits above the log)
-    juce::GroupComponent paramsGroup;
-    juce::ToggleButton passThroughOtherMidiToggle;
-    
     // Debug log text area
     juce::TextEditor logTextEditor;
     juce::Label logLabel;
