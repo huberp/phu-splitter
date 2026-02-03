@@ -48,8 +48,8 @@ private:
     // Logger for editor log view
     std::unique_ptr<EditorLogger> editorLogger;
     
-    // 7-band multiband crossover for stereo to 7-channel splitting
-    // 6 crossover frequencies create 7 bands
+    // 7-band multiband crossover for stereo to 7 stereo channels splitting
+    // 6 crossover frequencies create 7 bands, each output as stereo
     static constexpr size_t NUM_BANDS = 7;
     static constexpr size_t NUM_CROSSOVER_FREQS = 6;
     
