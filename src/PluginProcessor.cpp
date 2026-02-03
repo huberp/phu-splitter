@@ -9,6 +9,10 @@ PhuArpAudioProcessor::PhuArpAudioProcessor()
                      .withOutput("Output", juce::AudioChannelSet::create7point0(), true))
     , editorLogger(std::make_unique<EditorLogger>())
 {
+    // Initialize multiband crossover with default frequencies (will be properly configured in prepareToPlay)
+    m_multiBand.initialize(LinkwitzRiley::Slope::DB24, DEFAULT_CROSSOVER_FREQS.data(), 
+                           NUM_CROSSOVER_FREQS, 44100.0f);
+    
     // Log initialization
     LOG_MESSAGE(editorLogger.get(), "Audio processing plugin initialized");
 }
@@ -20,6 +24,11 @@ PhuArpAudioProcessor::~PhuArpAudioProcessor()
 void PhuArpAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     syncGlobals.updateSampleRate(sampleRate);
+    
+    // Configure multiband crossover with actual sample rate
+    m_multiBand.setParams(LinkwitzRiley::Slope::DB24, DEFAULT_CROSSOVER_FREQS.data(),
+                          NUM_CROSSOVER_FREQS, static_cast<float>(sampleRate));
+    m_multiBand.reset();
 
     // Mark the current thread as the audio thread for realtime-safe logging.
     if (editorLogger)
@@ -50,8 +59,42 @@ void PhuArpAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
         LOG_MESSAGE(editorLogger.get(), "Processed " + juce::String(currentRun) + " audio blocks");
     }
 
-    // Basic audio processing - for now just pass through
-    // The audio is already in the buffer, so we don't need to do anything for passthrough
+    // Process stereo input through multiband crossover to 7 output channels
+    const int numSamples = buffer.getNumSamples();
+    const int numOutputChannels = buffer.getNumChannels();
+    
+    // Ensure we have stereo input (at minimum)
+    if (numOutputChannels < 2)
+    {
+        syncGlobals.finishRun(numSamples);
+        return;
+    }
+    
+    // Get read pointers for input (first two channels are stereo input)
+    const float* inputL = buffer.getReadPointer(0);
+    const float* inputR = buffer.getReadPointer(1);
+    
+    // Process each sample through the multiband crossover
+    // Output 7 bands to 7 channels
+    std::array<float, NUM_BANDS> bandsL;
+    std::array<float, NUM_BANDS> bandsR;
+    
+    for (int i = 0; i < numSamples; ++i)
+    {
+        // Process this sample through the multiband crossover
+        m_multiBand.processSample(inputL[i], inputR[i], bandsL.data(), bandsR.data());
+        
+        // Write each band to corresponding output channel
+        // For 7.0 surround: L, R, C, LFE (sub), Ls, Rs, Cs
+        // We map our frequency bands to these channels:
+        // Band 0 (sub bass < 80Hz) -> Output channel (we'll sum L+R to mono for each band)
+        for (size_t band = 0; band < NUM_BANDS && static_cast<int>(band) < numOutputChannels; ++band)
+        {
+            float* output = buffer.getWritePointer(static_cast<int>(band));
+            // Sum stereo to mono for each band output
+            output[i] = (bandsL[band] + bandsR[band]) * 0.5f;
+        }
+    }
     
     // Mark end of processing
     syncGlobals.finishRun(buffer.getNumSamples());

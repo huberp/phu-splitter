@@ -16,6 +16,7 @@ target_sources(phu-splitter PRIVATE
     PluginEditor.h
     EditorLogger.cpp
     EditorLogger.h
+    LinkwitzRileyFilter.h
 )
 
 target_compile_definitions(phu-splitter PUBLIC
