@@ -4,9 +4,9 @@ juce_add_plugin(phu-arp
     FORMATS VST3
     PRODUCT_NAME "PHU ARP"
     IS_SYNTH FALSE
-    NEEDS_MIDI_INPUT TRUE
-    NEEDS_MIDI_OUTPUT TRUE
-    IS_MIDI_EFFECT TRUE
+    NEEDS_MIDI_INPUT FALSE
+    NEEDS_MIDI_OUTPUT FALSE
+    IS_MIDI_EFFECT FALSE
 )
 
 target_sources(phu-arp PRIVATE
@@ -16,9 +16,6 @@ target_sources(phu-arp PRIVATE
     PluginEditor.h
     EditorLogger.cpp
     EditorLogger.h
-    ChordNotesTracker.h
-    PatternTracker.h
-    ChordPatternCoordinator.h
 )
 
 target_compile_definitions(phu-arp PUBLIC
