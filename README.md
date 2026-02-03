@@ -37,7 +37,7 @@ Each band is output to a separate stereo bus, allowing independent processing in
 - 6000 Hz (Upper-mid / Presence split)
 - 12000 Hz (Presence / Brilliance split)
 
-The crossover uses 48 dB/octave slopes for steep transitions and excellent frequency separation.
+The crossover uses 48 dB/octave slopes for steep transitions and excellent frequency separation, while maintaining minimal phase distortion and flat magnitude response when bands are summed.
 
 ## Implementation details
 
