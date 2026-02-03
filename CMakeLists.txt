@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.15)
-project(phu-splitter VERSION 1.0.0 LANGUAGES CXX)
+project(phu-splitter VERSION 0.5.0 LANGUAGES CXX)
+
+# Full version string with pre-release identifier for alpha/beta releases
+set(PHU_SPLITTER_VERSION_SUFFIX "-alpha")
+set(PHU_SPLITTER_FULL_VERSION "${PROJECT_VERSION}${PHU_SPLITTER_VERSION_SUFFIX}")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
