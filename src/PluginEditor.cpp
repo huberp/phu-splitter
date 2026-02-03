@@ -2,7 +2,7 @@
 #include "PluginProcessor.h"
 #include "EditorLogger.h"
 
-PhuArpAudioProcessorEditor::PhuArpAudioProcessorEditor(PhuArpAudioProcessor& p) 
+PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudioProcessor& p) 
     : AudioProcessorEditor(&p), audioProcessor(p)
 {
     // Set up debug log label
@@ -30,7 +30,7 @@ PhuArpAudioProcessorEditor::PhuArpAudioProcessorEditor(PhuArpAudioProcessor& p)
     addLogMessage("PhuArp Debug Log initialized");
 }
 
-PhuArpAudioProcessorEditor::~PhuArpAudioProcessorEditor() 
+PhuSplitterAudioProcessorEditor::~PhuSplitterAudioProcessorEditor() 
 {
     // Unregister from logger
     if (auto* logger = audioProcessor.getEditorLogger())
@@ -39,12 +39,12 @@ PhuArpAudioProcessorEditor::~PhuArpAudioProcessorEditor()
     }
 }
 
-void PhuArpAudioProcessorEditor::paint(juce::Graphics& g)
+void PhuSplitterAudioProcessorEditor::paint(juce::Graphics& g)
 {
     g.fillAll(getLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId));
 }
 
-void PhuArpAudioProcessorEditor::resized()
+void PhuSplitterAudioProcessorEditor::resized()
 {
     auto area = getLocalBounds().reduced(10);
     
@@ -56,7 +56,7 @@ void PhuArpAudioProcessorEditor::resized()
     logTextEditor.setBounds(area);
 }
 
-void PhuArpAudioProcessorEditor::addLogMessage(const juce::String& message)
+void PhuSplitterAudioProcessorEditor::addLogMessage(const juce::String& message)
 {
     // Get current time
     auto time = juce::Time::getCurrentTime();

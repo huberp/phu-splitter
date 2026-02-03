@@ -3,7 +3,7 @@
 #include "EditorLogger.h"
 #include "../lib/EventSource.h"
 
-PhuArpAudioProcessor::PhuArpAudioProcessor()
+PhuSplitterAudioProcessor::PhuSplitterAudioProcessor()
     : AudioProcessor(BusesProperties()
                      .withInput("Input", juce::AudioChannelSet::stereo(), true)
                      .withOutput("Band 1", juce::AudioChannelSet::stereo(), true)
@@ -23,11 +23,11 @@ PhuArpAudioProcessor::PhuArpAudioProcessor()
     LOG_MESSAGE(editorLogger.get(), "Audio processing plugin initialized");
 }
 
-PhuArpAudioProcessor::~PhuArpAudioProcessor() 
+PhuSplitterAudioProcessor::~PhuSplitterAudioProcessor() 
 {
 }
 
-void PhuArpAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
+void PhuSplitterAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     syncGlobals.updateSampleRate(sampleRate);
     
@@ -41,9 +41,9 @@ void PhuArpAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
         editorLogger->markCurrentThreadAsAudioThread();
 }
 
-void PhuArpAudioProcessor::releaseResources() {}
+void PhuSplitterAudioProcessor::releaseResources() {}
 
-void PhuArpAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
+void PhuSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
     
@@ -114,9 +114,9 @@ void PhuArpAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     syncGlobals.finishRun(buffer.getNumSamples());
 }
 
-juce::AudioProcessorEditor* PhuArpAudioProcessor::createEditor() 
+juce::AudioProcessorEditor* PhuSplitterAudioProcessor::createEditor() 
 { 
-    auto* editor = new PhuArpAudioProcessorEditor(*this);
+    auto* editor = new PhuSplitterAudioProcessorEditor(*this);
     
     // Register editor with logger
     if (editorLogger)
@@ -128,15 +128,15 @@ juce::AudioProcessorEditor* PhuArpAudioProcessor::createEditor()
     return editor;
 }
 
-bool PhuArpAudioProcessor::hasEditor() const { return true; }
+bool PhuSplitterAudioProcessor::hasEditor() const { return true; }
 
-const juce::String PhuArpAudioProcessor::getName() const { return "PhuArp"; }
-bool PhuArpAudioProcessor::acceptsMidi() const { return false; }
-bool PhuArpAudioProcessor::producesMidi() const { return false; }
-bool PhuArpAudioProcessor::isMidiEffect() const { return false; }
-double PhuArpAudioProcessor::getTailLengthSeconds() const { return 0.0; }
+const juce::String PhuSplitterAudioProcessor::getName() const { return "PhuArp"; }
+bool PhuSplitterAudioProcessor::acceptsMidi() const { return false; }
+bool PhuSplitterAudioProcessor::producesMidi() const { return false; }
+bool PhuSplitterAudioProcessor::isMidiEffect() const { return false; }
+double PhuSplitterAudioProcessor::getTailLengthSeconds() const { return 0.0; }
 
-bool PhuArpAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
+bool PhuSplitterAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
     // Check if input is stereo
     if (layouts.getMainInputChannelSet() != juce::AudioChannelSet::stereo())
@@ -156,17 +156,17 @@ bool PhuArpAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) co
     return true;
 }
 
-int PhuArpAudioProcessor::getNumPrograms() { return 1; }
-int PhuArpAudioProcessor::getCurrentProgram() { return 0; }
-void PhuArpAudioProcessor::setCurrentProgram(int) {}
-const juce::String PhuArpAudioProcessor::getProgramName(int) { return "Default"; }
-void PhuArpAudioProcessor::changeProgramName(int, const juce::String&) {}
+int PhuSplitterAudioProcessor::getNumPrograms() { return 1; }
+int PhuSplitterAudioProcessor::getCurrentProgram() { return 0; }
+void PhuSplitterAudioProcessor::setCurrentProgram(int) {}
+const juce::String PhuSplitterAudioProcessor::getProgramName(int) { return "Default"; }
+void PhuSplitterAudioProcessor::changeProgramName(int, const juce::String&) {}
 
-void PhuArpAudioProcessor::getStateInformation(juce::MemoryBlock&) {}
-void PhuArpAudioProcessor::setStateInformation(const void*, int) {}
+void PhuSplitterAudioProcessor::getStateInformation(juce::MemoryBlock&) {}
+void PhuSplitterAudioProcessor::setStateInformation(const void*, int) {}
 
 // This creates new instances of the plugin
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
-    return new PhuArpAudioProcessor();
+    return new PhuSplitterAudioProcessor();
 }
