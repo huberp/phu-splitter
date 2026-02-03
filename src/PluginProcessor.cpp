@@ -79,16 +79,16 @@ void PhuArpAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     std::array<float, NUM_BANDS> bandsL;
     std::array<float, NUM_BANDS> bandsR;
     
+    const auto numOutputChannelsSize = static_cast<size_t>(numOutputChannels);
+    
     for (int i = 0; i < numSamples; ++i)
     {
         // Process this sample through the multiband crossover
         m_multiBand.processSample(inputL[i], inputR[i], bandsL.data(), bandsR.data());
         
         // Write each band to corresponding output channel
-        // For 7.0 surround: L, R, C, LFE (sub), Ls, Rs, Cs
-        // We map our frequency bands to these channels:
-        // Band 0 (sub bass < 80Hz) -> Output channel (we'll sum L+R to mono for each band)
-        for (size_t band = 0; band < NUM_BANDS && static_cast<int>(band) < numOutputChannels; ++band)
+        // Band index maps directly to channel index (0-6)
+        for (size_t band = 0; band < NUM_BANDS && band < numOutputChannelsSize; ++band)
         {
             float* output = buffer.getWritePointer(static_cast<int>(band));
             // Sum stereo to mono for each band output
