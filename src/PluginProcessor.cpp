@@ -130,7 +130,7 @@ juce::AudioProcessorEditor* PhuSplitterAudioProcessor::createEditor()
 
 bool PhuSplitterAudioProcessor::hasEditor() const { return true; }
 
-const juce::String PhuSplitterAudioProcessor::getName() const { return "PhuArp"; }
+const juce::String PhuSplitterAudioProcessor::getName() const { return "PhuSplitter"; }
 bool PhuSplitterAudioProcessor::acceptsMidi() const { return false; }
 bool PhuSplitterAudioProcessor::producesMidi() const { return false; }
 bool PhuSplitterAudioProcessor::isMidiEffect() const { return false; }

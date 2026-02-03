@@ -27,7 +27,7 @@ PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudi
     setSize(600, 400);
     
     // Add initial welcome message
-    addLogMessage("PhuArp Debug Log initialized");
+    addLogMessage("PhuSplitter Debug Log initialized");
 }
 
 PhuSplitterAudioProcessorEditor::~PhuSplitterAudioProcessorEditor() 
