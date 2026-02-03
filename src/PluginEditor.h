@@ -2,13 +2,13 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-class PhuArpAudioProcessor;
+class PhuSplitterAudioProcessor;
 
-class PhuArpAudioProcessorEditor : public juce::AudioProcessorEditor
+class PhuSplitterAudioProcessorEditor : public juce::AudioProcessorEditor
 {
 public:
-    PhuArpAudioProcessorEditor(PhuArpAudioProcessor&);
-    ~PhuArpAudioProcessorEditor() override;
+    PhuSplitterAudioProcessorEditor(PhuSplitterAudioProcessor&);
+    ~PhuSplitterAudioProcessorEditor() override;
 
     void paint(juce::Graphics&) override;
     void resized() override;
@@ -17,11 +17,11 @@ public:
     void addLogMessage(const juce::String& message);
 
 private:
-    PhuArpAudioProcessor& audioProcessor;
+    PhuSplitterAudioProcessor& audioProcessor;
 
     // Debug log text area
     juce::TextEditor logTextEditor;
     juce::Label logLabel;
     
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PhuArpAudioProcessorEditor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PhuSplitterAudioProcessorEditor)
 };

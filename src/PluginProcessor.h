@@ -7,12 +7,12 @@
 
 class EditorLogger;
 
-class PhuArpAudioProcessor : public juce::AudioProcessor,
-                               public GlobalsEventListener
+class PhuSplitterAudioProcessor : public juce::AudioProcessor,
+                                  public GlobalsEventListener
 {
 public:
-    PhuArpAudioProcessor();
-    ~PhuArpAudioProcessor() override;
+    PhuSplitterAudioProcessor();
+    ~PhuSplitterAudioProcessor() override;
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
@@ -66,5 +66,5 @@ private:
     
     LinkwitzRiley::MultiBandN<float> m_multiBand;
     
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PhuArpAudioProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PhuSplitterAudioProcessor)
 };

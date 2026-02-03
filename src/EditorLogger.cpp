@@ -2,7 +2,7 @@
 #include "PluginEditor.h"
 #include <cstring>
 
-void EditorLogger::setEditor(PhuArpAudioProcessorEditor* newEditor)
+void EditorLogger::setEditor(PhuSplitterAudioProcessorEditor* newEditor)
 {
     editor = newEditor;
 

@@ -6,7 +6,7 @@
 #include <array>
 
 // Forward declaration
-class PhuArpAudioProcessorEditor;
+class PhuSplitterAudioProcessorEditor;
 
 /**
  * EditorLogger
@@ -39,7 +39,7 @@ public:
      * Set the editor that will receive log messages
      * @param editor Pointer to the editor (uses SafePointer internally)
      */
-    void setEditor(PhuArpAudioProcessorEditor* editor);
+    void setEditor(PhuSplitterAudioProcessorEditor* editor);
     
     /**
      * Clear the editor reference (call when editor is destroyed)
@@ -87,7 +87,7 @@ private:
     std::atomic<bool> asyncUpdateRequested { false };
     
     // Safe pointer to editor (automatically nulled when editor is destroyed)
-    juce::Component::SafePointer<PhuArpAudioProcessorEditor> editor;
+    juce::Component::SafePointer<PhuSplitterAudioProcessorEditor> editor;
 
     void requestAsyncUpdate() noexcept;
     void pushRealtime(const juce::String& message) noexcept;
