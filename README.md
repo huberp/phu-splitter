@@ -1,13 +1,8 @@
-# phu-arp
+# phu-splitter
 
-JUCE-based **VST3 MIDI effect** that turns:
+JUCE-based **VST3 audio effect** that splits a stereo input into **7 frequency bands** using Linkwitz-Riley crossover filters.
 
-- **Chord input** (MIDI channel 1)
-- **Rhythm/pattern triggers** (MIDI channel 16)
-
-into **generated note output** (MIDI channel 2).
-
-The core MIDI algorithm lives in `ChordPatternCoordinator` and is a C++ translation of the original Lua/Protoplug approach.
+Each band is output as a separate stereo channel, enabling multiband processing workflows in a DAW.
 
 ## Build (CMake + Visual Studio)
 
@@ -17,29 +12,42 @@ This repo is set up for CMake presets.
 - Build Debug: `cmake --build --preset debug`
 - Build Release: `cmake --build --preset release`
 
-The target built by the presets is `phu-arp_VST3`.
+The target built by the presets is `phu-splitter_VST3`.
 
-## MIDI routing
+## Audio Processing
 
-- **Ch 1**: chord definition (note on/off)
-- **Ch 16**: rhythm triggers (note on/off)
-- **Ch 2**: generated output notes
+The plugin uses **Linkwitz-Riley crossover filters** to split the incoming stereo audio into 7 frequency bands:
 
-The rhythm mapping uses a configurable **rhythm root note** (default **C1 = 24**). Notes are mapped by semitone index within the octave plus an octave offset.
+1. **Sub bass** (< 80 Hz)
+2. **Bass** (80-250 Hz)
+3. **Low-mid** (250-500 Hz)
+4. **Mid** (500-2000 Hz)
+5. **Upper-mid** (2000-6000 Hz)
+6. **Presence** (6000-12000 Hz)
+7. **Brilliance** (> 12000 Hz)
 
-## Implementation status (high level)
+Each band is output to a separate stereo bus, allowing independent processing in your DAW.
 
-- **Time-causal processing within a block**: events are ordered by `samplePosition` (with a stable priority at the same position).
-- **Ownership-based note-offs**: rhythm note-offs stop the exact output pitch(es) produced by that rhythm trigger, even if the chord changes later.
-- **Negative/below-root mapping fixed**: rhythm notes below the root map correctly.
+### Default Crossover Frequencies
 
-Known limitations to be aware of:
+- 80 Hz (Sub bass / Bass split)
+- 250 Hz (Bass / Low-mid split)
+- 500 Hz (Low-mid / Mid split)
+- 2000 Hz (Mid / Upper-mid split)
+- 6000 Hz (Upper-mid / Presence split)
+- 12000 Hz (Presence / Brilliance split)
 
-- **Duplicate chord note-ons** are allowed by `ChordNotesTracker` (no refcounting).
-- **Same output pitch from different triggers** is fundamentally ambiguous in MIDI (note-off has no voice id); if two triggers produce the same pitch on the same channel, releasing one may silence the other depending on the target instrument.
+The crossover uses 24 dB/octave slopes for minimal phase distortion and flat magnitude response when bands are summed.
+
+## Implementation details
+
+- **Linkwitz-Riley filters**: 4th order (24 dB/octave) crossovers implemented using cascaded biquad filters
+- **Phase coherent**: When all bands are summed, the original signal is reconstructed with flat magnitude response
+- **Multi-output architecture**: 1 stereo input → 7 stereo output buses
+- **Real-time safe**: Lock-free logging system for editor updates from audio thread
 
 ## Where to look
 
-- MIDI algorithm/design notes: `src/ChordPatternCoordinator_README.md`
-- Edge cases + regression checklist: `ChordPatternCoordinator_ProblemCases.md`
-- Small header-only event system used by the plugin: `lib/README.md`
+- Linkwitz-Riley filter implementation: `src/LinkwitzRileyFilter.h`
+- Plugin processor: `src/PluginProcessor.cpp` and `src/PluginProcessor.h`
+- Event system used by the plugin: `lib/README.md`
