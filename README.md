@@ -37,11 +37,11 @@ Each band is output to a separate stereo bus, allowing independent processing in
 - 6000 Hz (Upper-mid / Presence split)
 - 12000 Hz (Presence / Brilliance split)
 
-The crossover uses 24 dB/octave slopes for minimal phase distortion and flat magnitude response when bands are summed.
+The crossover uses 48 dB/octave slopes for steep transitions and excellent frequency separation, while maintaining minimal phase distortion and flat magnitude response when bands are summed.
 
 ## Implementation details
 
-- **Linkwitz-Riley filters**: 4th order (24 dB/octave) crossovers implemented using cascaded biquad filters
+- **Linkwitz-Riley filters**: 8th order (48 dB/octave) crossovers implemented using cascaded biquad filters
 - **Phase coherent**: When all bands are summed, the original signal is reconstructed with flat magnitude response
 - **Multi-output architecture**: 1 stereo input → 7 stereo output buses
 - **Real-time safe**: Lock-free logging system for editor updates from audio thread
