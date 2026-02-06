@@ -14,12 +14,18 @@ PhuSplitterAudioProcessor::PhuSplitterAudioProcessor()
                      .withOutput("Band 6", juce::AudioChannelSet::stereo(), true)
                      .withOutput("Band 7", juce::AudioChannelSet::stereo(), true))
     , editorLogger(std::make_unique<EditorLogger>())
+    , apvts(*this, nullptr, "Parameters", createParameterLayout())
 {
-    // Initialize multiband crossover with default frequencies (will be properly configured in prepareToPlay)
+    // Cache raw parameter pointers for audio-thread access
+    for (size_t i = 0; i < NUM_CROSSOVER_FREQS; ++i)
+    {
+        crossoverParamPtrs[i] = apvts.getRawParameterValue(getCrossoverParamID(i));
+    }
+    
+    // Initialize multiband crossover with default frequencies
     m_multiBand.initialize(LinkwitzRiley::Slope::DB48, DEFAULT_CROSSOVER_FREQS.data(), 
                            NUM_CROSSOVER_FREQS, 44100.0f);
     
-    // Log initialization
     LOG_MESSAGE(editorLogger.get(), "Audio processing plugin initialized");
 }
 
@@ -31,12 +37,15 @@ void PhuSplitterAudioProcessor::prepareToPlay(double sampleRate, int samplesPerB
 {
     syncGlobals.updateSampleRate(sampleRate);
     
+    // Read current crossover frequencies from parameters
+    for (size_t i = 0; i < NUM_CROSSOVER_FREQS; ++i)
+        currentFreqs[i] = crossoverParamPtrs[i]->load();
+    
     // Configure multiband crossover with actual sample rate
-    m_multiBand.setParams(LinkwitzRiley::Slope::DB48, DEFAULT_CROSSOVER_FREQS.data(),
+    m_multiBand.setParams(LinkwitzRiley::Slope::DB48, currentFreqs.data(),
                           NUM_CROSSOVER_FREQS, static_cast<float>(sampleRate));
     m_multiBand.reset();
 
-    // Mark the current thread as the audio thread for realtime-safe logging.
     if (editorLogger)
         editorLogger->markCurrentThreadAsAudioThread();
 }
@@ -46,6 +55,25 @@ void PhuSplitterAudioProcessor::releaseResources() {}
 void PhuSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
+    
+    // Check if crossover frequencies changed from parameter automation
+    {
+        bool changed = false;
+        for (size_t i = 0; i < NUM_CROSSOVER_FREQS; ++i)
+        {
+            float paramVal = crossoverParamPtrs[i]->load();
+            if (paramVal != currentFreqs[i])
+            {
+                currentFreqs[i] = paramVal;
+                changed = true;
+            }
+        }
+        if (changed)
+        {
+            m_multiBand.setParams(LinkwitzRiley::Slope::DB48, currentFreqs.data(),
+                                  NUM_CROSSOVER_FREQS, static_cast<float>(getSampleRate()));
+        }
+    }
     
     // Get playhead position info
     auto playHeadPtr = getPlayHead();
@@ -162,8 +190,72 @@ void PhuSplitterAudioProcessor::setCurrentProgram(int) {}
 const juce::String PhuSplitterAudioProcessor::getProgramName(int) { return "Default"; }
 void PhuSplitterAudioProcessor::changeProgramName(int, const juce::String&) {}
 
-void PhuSplitterAudioProcessor::getStateInformation(juce::MemoryBlock&) {}
-void PhuSplitterAudioProcessor::setStateInformation(const void*, int) {}
+void PhuSplitterAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
+{
+    auto state = apvts.copyState();
+    std::unique_ptr<juce::XmlElement> xml(state.createXml());
+    copyXmlToBinary(*xml, destData);
+}
+
+void PhuSplitterAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
+{
+    std::unique_ptr<juce::XmlElement> xml(getXmlFromBinary(data, sizeInBytes));
+    if (xml && xml->hasTagName(apvts.state.getType()))
+        apvts.replaceState(juce::ValueTree::fromXml(*xml));
+}
+
+// ============================================================================
+// Parameter helpers
+// ============================================================================
+
+juce::String PhuSplitterAudioProcessor::getCrossoverParamID(size_t index)
+{
+    return "crossover_freq_" + juce::String(static_cast<int>(index + 1));
+}
+
+juce::AudioProcessorValueTreeState::ParameterLayout PhuSplitterAudioProcessor::createParameterLayout()
+{
+    juce::AudioProcessorValueTreeState::ParameterLayout layout;
+    
+    static const juce::StringArray bandLabels = { 
+        "Sub/Bass", "Bass/LoMid", "LoMid/Mid", "Mid/HiMid", "HiMid/Pres", "Pres/Brill" 
+    };
+    
+    for (size_t i = 0; i < NUM_CROSSOVER_FREQS; ++i)
+    {
+        auto paramID = getCrossoverParamID(i);
+        auto name = "XOver " + bandLabels[static_cast<int>(i)];
+        
+        // Log-skewed range: 20 Hz .. 20000 Hz, skew ~0.25 for log-like distribution
+        layout.add(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID { paramID, 1 },
+            name,
+            juce::NormalisableRange<float>(20.0f, 20000.0f, 0.1f, 0.25f),
+            DEFAULT_CROSSOVER_FREQS[i]
+        ));
+    }
+    
+    return layout;
+}
+
+std::array<float, PhuSplitterAudioProcessor::NUM_CROSSOVER_FREQS> 
+PhuSplitterAudioProcessor::getCrossoverFrequencies() const
+{
+    std::array<float, NUM_CROSSOVER_FREQS> freqs;
+    for (size_t i = 0; i < NUM_CROSSOVER_FREQS; ++i)
+        freqs[i] = crossoverParamPtrs[i]->load();
+    return freqs;
+}
+
+void PhuSplitterAudioProcessor::setCrossoverFrequency(size_t index, float freqHz)
+{
+    if (index < NUM_CROSSOVER_FREQS)
+    {
+        auto* param = apvts.getParameter(getCrossoverParamID(index));
+        if (param)
+            param->setValueNotifyingHost(param->convertTo0to1(freqHz));
+    }
+}
 
 // This creates new instances of the plugin
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

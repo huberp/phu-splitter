@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <atomic>
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "../lib/SyncGlobals.h"
 #include "LinkwitzRileyFilter.h"
@@ -40,21 +41,12 @@ public:
     
     // Get the editor logger (for editor registration)
     EditorLogger* getEditorLogger() const { return editorLogger.get(); }
-
-private:
-    // DAW synchronization globals (each instance has its own)
-    SyncGlobals syncGlobals;
     
-    // Logger for editor log view
-    std::unique_ptr<EditorLogger> editorLogger;
-    
-    // 7-band multiband crossover for stereo to 7 stereo channels splitting
-    // 6 crossover frequencies create 7 bands, each output as stereo
+    // Constants
     static constexpr size_t NUM_BANDS = 7;
     static constexpr size_t NUM_CROSSOVER_FREQS = 6;
     
     // Default crossover frequencies for 7 bands (in Hz)
-    // Sub bass, Bass, Low-mid, Mid, Upper-mid, Presence, Brilliance
     static constexpr std::array<float, NUM_CROSSOVER_FREQS> DEFAULT_CROSSOVER_FREQS = {
         80.0f,    // Sub bass / Bass split
         250.0f,   // Bass / Low-mid split
@@ -63,6 +55,34 @@ private:
         6000.0f,  // Upper-mid / Presence split
         12000.0f  // Presence / Brilliance split
     };
+    
+    // Parameter tree state for automatable parameters
+    juce::AudioProcessorValueTreeState& getAPVTS() { return apvts; }
+    
+    // Get/set crossover frequencies (thread-safe)
+    std::array<float, NUM_CROSSOVER_FREQS> getCrossoverFrequencies() const;
+    void setCrossoverFrequency(size_t index, float freqHz);
+    
+    // Parameter IDs for crossover frequencies
+    static juce::String getCrossoverParamID(size_t index);
+
+private:
+    // Create parameter layout for APVTS
+    static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+    // DAW synchronization globals (each instance has its own)
+    SyncGlobals syncGlobals;
+    
+    // Logger for editor log view
+    std::unique_ptr<EditorLogger> editorLogger;
+    
+    // APVTS for DAW parameter automation & state save/restore
+    juce::AudioProcessorValueTreeState apvts;
+    
+    // Cached atomic pointers to crossover frequency parameters (for audio thread)
+    std::array<std::atomic<float>*, NUM_CROSSOVER_FREQS> crossoverParamPtrs{};
+    
+    // Current frequencies used by audio thread (updated from params each block)
+    std::array<float, NUM_CROSSOVER_FREQS> currentFreqs = DEFAULT_CROSSOVER_FREQS;
     
     LinkwitzRiley::MultiBandN<float> m_multiBand;
     

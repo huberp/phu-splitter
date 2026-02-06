@@ -14,6 +14,12 @@ target_sources(phu-splitter PRIVATE
     PluginProcessor.h
     PluginEditor.cpp
     PluginEditor.h
+    CrossoverFrequencyBar.cpp
+    CrossoverFrequencyBar.h
+    PresetManager.cpp
+    PresetManager.h
+    PresetStrip.cpp
+    PresetStrip.h
     EditorLogger.cpp
     EditorLogger.h
     LinkwitzRileyFilter.h

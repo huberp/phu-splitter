@@ -3,8 +3,20 @@
 #include "EditorLogger.h"
 
 PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudioProcessor& p) 
-    : AudioProcessorEditor(&p), audioProcessor(p)
+    : AudioProcessorEditor(&p), audioProcessor(p), presetStrip(p), crossoverBar(p)
 {
+    // Add preset strip
+    addAndMakeVisible(presetStrip);
+    
+    // Set up crossover bar label
+    crossoverLabel.setText("Crossover Frequencies", juce::dontSendNotification);
+    crossoverLabel.setJustificationType(juce::Justification::centredLeft);
+    crossoverLabel.setFont(juce::Font(14.0f, juce::Font::bold));
+    addAndMakeVisible(crossoverLabel);
+    
+    // Add crossover frequency bar
+    addAndMakeVisible(crossoverBar);
+    
     // Set up debug log label
     logLabel.setText("Debug Log", juce::dontSendNotification);
     logLabel.setJustificationType(juce::Justification::centredLeft);
@@ -23,8 +35,8 @@ PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudi
     logTextEditor.setColour(juce::TextEditor::outlineColourId, juce::Colours::grey);
     addAndMakeVisible(logTextEditor);
     
-    // Set editor size
-    setSize(600, 400);
+    // Set editor size (wider for crossover bar, taller to fit both sections)
+    setSize(750, 500);
     
     // Add initial welcome message
     addLogMessage("PhuSplitter Debug Log initialized");
@@ -48,11 +60,19 @@ void PhuSplitterAudioProcessorEditor::resized()
 {
     auto area = getLocalBounds().reduced(10);
     
-    // Label at top
-    logLabel.setBounds(area.removeFromTop(25));
-    area.removeFromTop(5); // Spacing
+    // Preset strip at very top
+    presetStrip.setBounds(area.removeFromTop(30));
+    area.removeFromTop(6);
     
-    // Text editor takes remaining space
+    // Crossover section
+    crossoverLabel.setBounds(area.removeFromTop(25));
+    area.removeFromTop(3);
+    crossoverBar.setBounds(area.removeFromTop(100));
+    area.removeFromTop(10);
+    
+    // Debug log section below
+    logLabel.setBounds(area.removeFromTop(25));
+    area.removeFromTop(5);
     logTextEditor.setBounds(area);
 }
 
