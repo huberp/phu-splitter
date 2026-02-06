@@ -27,7 +27,10 @@ juce::File PresetManager::getPresetsDirectory() const
 
 juce::File PresetManager::getPresetFile(const juce::String& name) const
 {
-    return getPresetsDirectory().getChildFile(name + PRESET_FILE_EXTENSION);
+    juce::String safeName = juce::File::createLegalFileName(name);
+    if (safeName.isEmpty())
+        safeName = "Preset";
+    return getPresetsDirectory().getChildFile(safeName + PRESET_FILE_EXTENSION);
 }
 
 void PresetManager::writePresetFile(const Preset& preset) const
