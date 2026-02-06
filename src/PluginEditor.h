@@ -2,6 +2,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "CrossoverFrequencyBar.h"
+#include "PresetStrip.h"
 
 class PhuSplitterAudioProcessor;
 
@@ -20,7 +21,10 @@ public:
 private:
     PhuSplitterAudioProcessor& audioProcessor;
 
-    // Crossover frequency bar (Design 1)
+    // Preset strip (Design 3: inline navigation)
+    PresetStrip presetStrip;
+    
+    // Crossover frequency bar
     CrossoverFrequencyBar crossoverBar;
     juce::Label crossoverLabel;
     

@@ -3,8 +3,11 @@
 #include "EditorLogger.h"
 
 PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudioProcessor& p) 
-    : AudioProcessorEditor(&p), audioProcessor(p), crossoverBar(p)
+    : AudioProcessorEditor(&p), audioProcessor(p), presetStrip(p), crossoverBar(p)
 {
+    // Add preset strip
+    addAndMakeVisible(presetStrip);
+    
     // Set up crossover bar label
     crossoverLabel.setText("Crossover Frequencies", juce::dontSendNotification);
     crossoverLabel.setJustificationType(juce::Justification::centredLeft);
@@ -57,7 +60,11 @@ void PhuSplitterAudioProcessorEditor::resized()
 {
     auto area = getLocalBounds().reduced(10);
     
-    // Crossover section at top
+    // Preset strip at very top
+    presetStrip.setBounds(area.removeFromTop(30));
+    area.removeFromTop(6);
+    
+    // Crossover section
     crossoverLabel.setBounds(area.removeFromTop(25));
     area.removeFromTop(3);
     crossoverBar.setBounds(area.removeFromTop(100));
