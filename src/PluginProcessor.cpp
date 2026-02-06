@@ -1,6 +1,8 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#ifndef NDEBUG  // Debug builds only
 #include "EditorLogger.h"
+#endif
 #include "../lib/EventSource.h"
 
 PhuSplitterAudioProcessor::PhuSplitterAudioProcessor()
@@ -13,7 +15,9 @@ PhuSplitterAudioProcessor::PhuSplitterAudioProcessor()
                      .withOutput("Band 5", juce::AudioChannelSet::stereo(), true)
                      .withOutput("Band 6", juce::AudioChannelSet::stereo(), true)
                      .withOutput("Band 7", juce::AudioChannelSet::stereo(), true))
+#ifndef NDEBUG  // Debug builds only
     , editorLogger(std::make_unique<EditorLogger>())
+#endif
     , apvts(*this, nullptr, "Parameters", createParameterLayout())
 {
     // Cache raw parameter pointers for audio-thread access
@@ -26,7 +30,9 @@ PhuSplitterAudioProcessor::PhuSplitterAudioProcessor()
     m_multiBand.initialize(LinkwitzRiley::Slope::DB48, DEFAULT_CROSSOVER_FREQS.data(), 
                            NUM_CROSSOVER_FREQS, 44100.0f);
     
+#ifndef NDEBUG  // Debug builds only
     LOG_MESSAGE(editorLogger.get(), "Audio processing plugin initialized");
+#endif
 }
 
 PhuSplitterAudioProcessor::~PhuSplitterAudioProcessor() 
@@ -46,8 +52,10 @@ void PhuSplitterAudioProcessor::prepareToPlay(double sampleRate, int samplesPerB
                           NUM_CROSSOVER_FREQS, static_cast<float>(sampleRate));
     m_multiBand.reset();
 
+#ifndef NDEBUG  // Debug builds only
     if (editorLogger)
         editorLogger->markCurrentThreadAsAudioThread();
+#endif
 }
 
 void PhuSplitterAudioProcessor::releaseResources() {}
@@ -86,12 +94,14 @@ void PhuSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
         positionInfo
     );
     
+#ifndef NDEBUG  // Debug builds only
     // Test logging (can be removed later)
     const auto currentRun = syncGlobals.getCurrentRun();
     if (currentRun % 1000 == 0)
     {
         LOG_MESSAGE(editorLogger.get(), "Processed " + juce::String(currentRun) + " audio blocks");
     }
+#endif
 
     // Process stereo input through multiband crossover to 7 stereo output channels
     const int numSamples = buffer.getNumSamples();
@@ -146,12 +156,14 @@ juce::AudioProcessorEditor* PhuSplitterAudioProcessor::createEditor()
 { 
     auto* editor = new PhuSplitterAudioProcessorEditor(*this);
     
+#ifndef NDEBUG  // Debug builds only
     // Register editor with logger
     if (editorLogger)
     {
         editorLogger->setEditor(editor);
         LOG_MESSAGE(editorLogger.get(), "Editor opened");
     }
+#endif
     
     return editor;
 }

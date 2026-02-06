@@ -1,5 +1,7 @@
 #pragma once
 
+#ifndef NDEBUG  // Debug builds only
+
 #include <juce_core/juce_core.h>
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <atomic>
@@ -98,6 +100,13 @@ private:
 // Convenience macro for instance-scoped logging
 #define LOG_MESSAGE(loggerPtr, msg) \
     do { \
-        if ((loggerPtr) != nullptr) \
-            (loggerPtr)->logMessage((msg)); \
-    } while(0)
+        if ((loggerPtr) != nullptr) (loggerPtr)->logMessage(msg); \
+    } while (0)
+
+#else // Release builds
+
+// No-op macro for release builds
+#define LOG_MESSAGE(loggerPtr, msg) do { (void)(loggerPtr); (void)(msg); } while (0)
+
+
+#endif // !NDEBUG

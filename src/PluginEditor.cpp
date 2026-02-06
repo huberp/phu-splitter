@@ -17,6 +17,7 @@ PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudi
     // Add crossover frequency bar
     addAndMakeVisible(crossoverBar);
     
+#ifndef NDEBUG  // Debug builds only
     // Set up debug log label
     logLabel.setText("Debug Log", juce::dontSendNotification);
     logLabel.setJustificationType(juce::Justification::centredLeft);
@@ -40,15 +41,21 @@ PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudi
     
     // Add initial welcome message
     addLogMessage("PhuSplitter Debug Log initialized");
+#else
+    // Smaller editor size for release builds (no debug log)
+    setSize(750, 200);
+#endif
 }
 
 PhuSplitterAudioProcessorEditor::~PhuSplitterAudioProcessorEditor() 
 {
+#ifndef NDEBUG  // Debug builds only
     // Unregister from logger
     if (auto* logger = audioProcessor.getEditorLogger())
     {
         logger->clearEditor();
     }
+#endif
 }
 
 void PhuSplitterAudioProcessorEditor::paint(juce::Graphics& g)
@@ -70,12 +77,15 @@ void PhuSplitterAudioProcessorEditor::resized()
     crossoverBar.setBounds(area.removeFromTop(100));
     area.removeFromTop(10);
     
-    // Debug log section below
+#ifndef NDEBUG  // Debug builds only
+    // Debug log section below (debug builds only)
     logLabel.setBounds(area.removeFromTop(25));
     area.removeFromTop(5);
     logTextEditor.setBounds(area);
+#endif
 }
 
+#ifndef NDEBUG  // Debug builds only
 void PhuSplitterAudioProcessorEditor::addLogMessage(const juce::String& message)
 {
     // Get current time
@@ -90,3 +100,4 @@ void PhuSplitterAudioProcessorEditor::addLogMessage(const juce::String& message)
     // Auto-scroll to bottom
     logTextEditor.moveCaretToEnd();
 }
+#endif

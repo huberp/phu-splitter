@@ -6,7 +6,9 @@
 #include "../lib/SyncGlobals.h"
 #include "LinkwitzRileyFilter.h"
 
+#ifndef NDEBUG  // Debug builds only
 class EditorLogger;
+#endif
 
 class PhuSplitterAudioProcessor : public juce::AudioProcessor,
                                   public GlobalsEventListener
@@ -39,8 +41,10 @@ public:
     void getStateInformation(juce::MemoryBlock& destData) override;
     void setStateInformation(const void* data, int sizeInBytes) override;
     
+#ifndef NDEBUG  // Debug builds only
     // Get the editor logger (for editor registration)
     EditorLogger* getEditorLogger() const { return editorLogger.get(); }
+#endif
     
     // Constants
     static constexpr size_t NUM_BANDS = 7;
@@ -72,8 +76,10 @@ private:
     // DAW synchronization globals (each instance has its own)
     SyncGlobals syncGlobals;
     
-    // Logger for editor log view
+#ifndef NDEBUG  // Debug builds only
+    // Logger for editor log view (debug builds only)
     std::unique_ptr<EditorLogger> editorLogger;
+#endif
     
     // APVTS for DAW parameter automation & state save/restore
     juce::AudioProcessorValueTreeState apvts;

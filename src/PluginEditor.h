@@ -15,8 +15,10 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
     
+#ifndef NDEBUG  // Debug builds only
     // Add log message to debug window
     void addLogMessage(const juce::String& message);
+#endif
 
 private:
     PhuSplitterAudioProcessor& audioProcessor;
@@ -28,9 +30,11 @@ private:
     CrossoverFrequencyBar crossoverBar;
     juce::Label crossoverLabel;
     
-    // Debug log text area
+#ifndef NDEBUG  // Debug builds only
+    // Debug log text area (only in debug builds)
     juce::TextEditor logTextEditor;
     juce::Label logLabel;
+#endif
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PhuSplitterAudioProcessorEditor)
 };

@@ -296,14 +296,17 @@ void CrossoverFrequencyBar::paint(juce::Graphics& g)
         int dx = dividerXForIndex(i);
         
         // Glow when hovered or dragged
-        bool active = (dragIndex == static_cast<int>(i));
+        bool dragging = (dragIndex == static_cast<int>(i));
+        bool hovering = (hoverIndex == static_cast<int>(i));
+        bool active = dragging || hovering;
+        
         g.setColour(active ? juce::Colours::cyan : juce::Colours::white.withAlpha(0.8f));
         g.drawVerticalLine(dx, static_cast<float>(bar.getY()), static_cast<float>(bar.getBottom()));
         
         // Slightly thicker handle zone
         if (active)
         {
-            g.setColour(juce::Colours::cyan.withAlpha(0.3f));
+            g.setColour(juce::Colours::cyan.withAlpha(dragging ? 0.5f : 0.3f));
             g.fillRect(dx - 2, bar.getY(), 5, bar.getHeight());
         }
     }
@@ -384,4 +387,19 @@ void CrossoverFrequencyBar::mouseMove(const juce::MouseEvent& e)
     int hit = hitTestDivider(e.x);
     setMouseCursor(hit >= 0 ? juce::MouseCursor::LeftRightResizeCursor 
                             : juce::MouseCursor::NormalCursor);
+    
+    if (hit != hoverIndex)
+    {
+        hoverIndex = hit;
+        repaint();
+    }
+}
+
+void CrossoverFrequencyBar::mouseExit(const juce::MouseEvent&)
+{
+    if (hoverIndex >= 0)
+    {
+        hoverIndex = -1;
+        repaint();
+    }
 }

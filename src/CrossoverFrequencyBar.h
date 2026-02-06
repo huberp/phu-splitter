@@ -40,6 +40,7 @@ public:
     void mouseDrag(const juce::MouseEvent& e) override;
     void mouseUp(const juce::MouseEvent& e) override;
     void mouseMove(const juce::MouseEvent& e) override;
+    void mouseExit(const juce::MouseEvent& e) override;
 
     // Timer callback to poll parameter values (for automation)
     void timerCallback() override;
@@ -91,8 +92,9 @@ private:
     // Text boxes for frequency readout / input
     std::array<std::unique_ptr<juce::Label>, NUM_FREQS> freqLabels;
     
-    // Dragging state
+    // Interaction state
     int dragIndex = -1;
+    int hoverIndex = -1;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CrossoverFrequencyBar)
 };

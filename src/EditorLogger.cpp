@@ -1,3 +1,5 @@
+#ifndef NDEBUG  // Debug builds only
+
 #include "EditorLogger.h"
 #include "PluginEditor.h"
 #include <cstring>
@@ -132,3 +134,5 @@ void EditorLogger::handleAsyncUpdate()
             requestAsyncUpdate();
     }
 }
+
+#endif // !NDEBUG
