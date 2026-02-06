@@ -1,6 +1,7 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include "CrossoverFrequencyBar.h"
 
 class PhuSplitterAudioProcessor;
 
@@ -19,6 +20,10 @@ public:
 private:
     PhuSplitterAudioProcessor& audioProcessor;
 
+    // Crossover frequency bar (Design 1)
+    CrossoverFrequencyBar crossoverBar;
+    juce::Label crossoverLabel;
+    
     // Debug log text area
     juce::TextEditor logTextEditor;
     juce::Label logLabel;
