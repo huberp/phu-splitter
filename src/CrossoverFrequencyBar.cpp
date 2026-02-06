@@ -1,5 +1,6 @@
 #include "CrossoverFrequencyBar.h"
 #include "PluginProcessor.h"
+#include "NoteToFreq.h"
 
 // ============================================================================
 // Construction / Destruction
@@ -75,25 +76,37 @@ static juce::String formatFreq(float hz)
 
 static float parseFreq(const juce::String& text)
 {
-    juce::String trimmed = text.trim().toLowerCase();
-    
+    juce::String trimmed = text.trim();
+    std::string str = trimmed.toStdString();
+
+    // Try note name first (e.g. "C#3", "E#1", "Ab4")
+    if (NoteToFreq::looksLikeNoteName(str))
+    {
+        auto freq = NoteToFreq::toFrequency(str);
+        if (freq.has_value())
+            return static_cast<float>(freq.value());
+    }
+
+    // Fall through to numeric parsing
+    juce::String lower = trimmed.toLowerCase();
+
     // Handle "k" suffix for kHz
-    if (trimmed.endsWithChar('k'))
+    if (lower.endsWithChar('k'))
     {
-        float val = trimmed.dropLastCharacters(1).getFloatValue();
+        float val = lower.dropLastCharacters(1).getFloatValue();
         return val * 1000.0f;
     }
-    if (trimmed.endsWith("khz"))
+    if (lower.endsWith("khz"))
     {
-        float val = trimmed.dropLastCharacters(3).getFloatValue();
+        float val = lower.dropLastCharacters(3).getFloatValue();
         return val * 1000.0f;
     }
-    if (trimmed.endsWith("hz"))
+    if (lower.endsWith("hz"))
     {
-        return trimmed.dropLastCharacters(2).getFloatValue();
+        return lower.dropLastCharacters(2).getFloatValue();
     }
-    
-    return trimmed.getFloatValue();
+
+    return lower.getFloatValue();
 }
 
 void CrossoverFrequencyBar::createTextBoxes()
