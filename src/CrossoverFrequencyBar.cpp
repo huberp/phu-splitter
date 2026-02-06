@@ -58,8 +58,30 @@ float CrossoverFrequencyBar::xToFreq(float x) const
 
 float CrossoverFrequencyBar::clampFreqForIndex(size_t index, float freq) const
 {
-    float lo = (index == 0)            ? MIN_FREQ * MIN_FREQ_RATIO : freqs[index - 1] * MIN_FREQ_RATIO;
-    float hi = (index == NUM_FREQS - 1) ? MAX_FREQ / MIN_FREQ_RATIO : freqs[index + 1] / MIN_FREQ_RATIO;
+    float lo = MIN_FREQ;
+    float hi = MAX_FREQ;
+
+    if (index == 0)
+    {
+        // First divider: allow down to MIN_FREQ, but keep a minimum ratio to the next divider
+        lo = MIN_FREQ;
+        if (NUM_FREQS > 1)
+            hi = freqs[1] / MIN_FREQ_RATIO;
+        else
+            hi = MAX_FREQ;
+    }
+    else if (index == NUM_FREQS - 1)
+    {
+        // Last divider: allow up to MAX_FREQ, but keep a minimum ratio to the previous divider
+        lo = freqs[index - 1] * MIN_FREQ_RATIO;
+        hi = MAX_FREQ;
+    }
+    else
+    {
+        // Middle dividers: constrained between neighboring dividers
+        lo = freqs[index - 1] * MIN_FREQ_RATIO;
+        hi = freqs[index + 1] / MIN_FREQ_RATIO;
+    }
     return juce::jlimit(lo, hi, freq);
 }
 
