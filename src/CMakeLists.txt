@@ -1,6 +1,6 @@
 juce_add_plugin(phu-splitter
     PLUGIN_MANUFACTURER_CODE Phub
-    PLUGIN_CODE Parp
+    PLUGIN_CODE Pspl
     FORMATS VST3
     PRODUCT_NAME "PHU SPLITTER"
     IS_SYNTH FALSE
