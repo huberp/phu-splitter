@@ -176,7 +176,10 @@ void CrossoverFrequencyBar::pullFreqsFromParams()
         }
     }
     if (changed)
+    {
+        resized();  // reposition text boxes under new divider locations
         repaint();
+    }
 }
 
 // ============================================================================
