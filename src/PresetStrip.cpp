@@ -114,26 +114,31 @@ void PresetStrip::showPresetMenu()
     menu.addItem(1, "Delete \"" + current + "\"", canManage);
     menu.addItem(2, "Rename...", canManage);
 
+    juce::Component::SafePointer<PresetStrip> safeThis(this);
+
     menu.showMenuAsync(juce::PopupMenu::Options()
         .withTargetComponent(&presetNameButton),
-        [this, names](int result)
+        [safeThis, names](int result)
         {
+            if (safeThis == nullptr)
+                return;
+
             if (result == 0) return; // dismissed
 
             if (result == 1)
             {
                 // Delete current
-                presetManager.deletePreset(presetManager.getCurrentPresetName());
+                safeThis->presetManager.deletePreset(safeThis->presetManager.getCurrentPresetName());
             }
             else if (result == 2)
             {
                 // Rename
-                showRenameDialog();
+                safeThis->showRenameDialog();
             }
             else if (result >= 1000)
             {
                 int idx = result - 1000;
-                presetManager.loadPresetByIndex(idx);
+                safeThis->presetManager.loadPresetByIndex(idx);
             }
         });
 }
