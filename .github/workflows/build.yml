@@ -47,7 +47,7 @@ jobs:
           # Check if pluginval.exe exists and is executable
           if [ ! -f "./pluginval/pluginval.exe" ]; then
             echo "ERROR: pluginval.exe not found at ./pluginval/pluginval.exe"
-            echo "validation_status=no_plugin" >> $GITHUB_OUTPUT
+            echo "validation_status=no_pluginval" >> $GITHUB_OUTPUT
             exit 1
           fi
 
@@ -95,7 +95,9 @@ jobs:
           elif [ "$VALIDATION_STATUS" == "failed" ]; then
             echo "### ❌ Validation Failed" >> $GITHUB_STEP_SUMMARY
           elif [ "$VALIDATION_STATUS" == "no_plugin" ]; then
-            echo "### ⚠️ No Plugin Found" >> $GITHUB_STEP_SUMMARY
+            echo "### ⚠️ VST3 Plugin Not Found" >> $GITHUB_STEP_SUMMARY
+          elif [ "$VALIDATION_STATUS" == "no_pluginval" ]; then
+            echo "### ⚠️ Pluginval Not Found" >> $GITHUB_STEP_SUMMARY
           else
             echo "### ⚠️ No Results" >> $GITHUB_STEP_SUMMARY
           fi
@@ -122,9 +124,14 @@ jobs:
         run: |
           VALIDATION_STATUS="${{ steps.validate.outputs.validation_status }}"
 
-          if [ "$VALIDATION_STATUS" == "failed" ] || \
-             [ "$VALIDATION_STATUS" == "no_plugin" ]; then
-            echo "Validation failed with status: $VALIDATION_STATUS"
+          if [ "$VALIDATION_STATUS" == "failed" ]; then
+            echo "Build failed: Plugin validation failed"
+            exit 1
+          elif [ "$VALIDATION_STATUS" == "no_plugin" ]; then
+            echo "Build failed: VST3 plugin not found"
+            exit 1
+          elif [ "$VALIDATION_STATUS" == "no_pluginval" ]; then
+            echo "Build failed: pluginval.exe not found"
             exit 1
           fi
 
