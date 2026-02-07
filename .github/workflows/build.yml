@@ -32,7 +32,7 @@ jobs:
         run: |
           set +e  # Don't exit on error, we want to capture the result
 
-          # Find the VST3 plugin
+          # Find the VST3 plugin (JUCE uses British spelling "artefacts")
           VST3_PATH=$(find build/src/phu-splitter_artefacts/Release/VST3 \
             -name "*.vst3" -type d | head -n 1)
 
@@ -43,6 +43,13 @@ jobs:
           fi
 
           echo "Found VST3 plugin at: $VST3_PATH"
+
+          # Check if pluginval.exe exists and is executable
+          if [ ! -f "./pluginval/pluginval.exe" ]; then
+            echo "ERROR: pluginval.exe not found at ./pluginval/pluginval.exe"
+            echo "validation_status=no_plugin" >> $GITHUB_OUTPUT
+            exit 1
+          fi
 
           # Create validation results directory
           mkdir -p ./validation-results
