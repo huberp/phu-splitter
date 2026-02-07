@@ -25,7 +25,7 @@ jobs:
     - name: Package VST3
       run: |
         mkdir -p artifacts
-        cp -r build/src/phu-splitter_artefacts/Release/VST3/* artifacts/
+        cp -r build/src/phu-splitter_artefacts/Release/VST3/*.vst3 artifacts/
       shell: bash
 
     - name: Create Release
