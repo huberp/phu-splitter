@@ -42,8 +42,9 @@ The workflow automatically marks releases as pre-release if the tag contains:
 
 ## Release Artifacts
 
-Each release includes:
-- **`PHU SPLITTER.zip`** - The complete VST3 plugin folder, ready to install
+Each release includes a ZIP file containing the complete VST3 plugin folder, ready to install.
+
+The ZIP filename is based on the plugin name (e.g., `PHU SPLITTER.zip`).
 
 ## Troubleshooting
 

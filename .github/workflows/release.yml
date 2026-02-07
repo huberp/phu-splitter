@@ -55,14 +55,19 @@ jobs:
         # Create a zip file of the VST3 plugin folder
         cd build/src/phu-splitter_artefacts/Release/VST3
         # Find the .vst3 directory and zip it
-        vst3_name=$(ls -d *.vst3 | head -1)
-        if [ -z "$vst3_name" ]; then
-          echo "Error: No .vst3 plugin found"
+        for vst3_dir in *.vst3; do
+          if [ -d "$vst3_dir" ]; then
+            echo "Found VST3 plugin: $vst3_dir"
+            7z a -tzip "$GITHUB_WORKSPACE/artifacts/${vst3_dir%.vst3}.zip" "$vst3_dir"
+            break
+          fi
+        done
+        # Verify artifact was created
+        if [ ! -f "$GITHUB_WORKSPACE/artifacts/"*.zip ]; then
+          echo "Error: No .vst3 plugin found or packaging failed"
           exit 1
         fi
-        echo "Found VST3 plugin: $vst3_name"
-        7z a -tzip "../../../../../artifacts/${vst3_name%.vst3}.zip" "$vst3_name"
-        cd ../../../../../artifacts
+        cd "$GITHUB_WORKSPACE/artifacts"
         ls -lh
       shell: bash
 
