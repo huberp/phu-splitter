@@ -6,22 +6,24 @@
  * Base Event class - mirrors the Lua event table structure
  * All events carry a source pointer and context information
  */
-struct Event {
+struct Event
+{
     virtual ~Event() = default;
-    
+
     // Source that fired this event
     const void* source = nullptr;
-    
+
     // Context from DAW (position, samples, etc.)
     // This mirrors the CONTEXT field in Lua events
-    struct Context {
+    struct Context
+    {
         const juce::AudioBuffer<float>* buffer = nullptr;
         int numberOfSamplesInFrame = 0;
         const juce::MidiBuffer* midiBuffer = nullptr;
         const juce::Optional<juce::AudioPlayHead::PositionInfo>* positionInfo = nullptr;
         int epoch = 0;
     } context;
-    
-protected:
+
+  protected:
     Event() = default;
 };

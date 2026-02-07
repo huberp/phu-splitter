@@ -1,10 +1,10 @@
 #pragma once
 
-#include <cmath>
-#include <string>
-#include <optional>
 #include <algorithm>
 #include <cctype>
+#include <cmath>
+#include <optional>
+#include <string>
 
 /**
  * NoteToFreq: Converts musical note names to frequencies in Hz.
@@ -22,7 +22,7 @@
  */
 class NoteToFreq
 {
-public:
+  public:
     /**
      * Convert a note name string to a frequency in Hz.
      * @param noteName  e.g. "A4", "C#3", "Eb2", "E#1"
@@ -59,7 +59,8 @@ public:
         pos++;
 
         // Semitone offset from C for each letter: C=0, D=2, E=4, F=5, G=7, A=9, B=11
-        static constexpr int semitones[] = { 9, 11, 0, 2, 4, 5, 7 }; // A=9, B=11, C=0, D=2, E=4, F=5, G=7
+        static constexpr int semitones[] = {9, 11, 0, 2,
+                                            4, 5,  7}; // A=9, B=11, C=0, D=2, E=4, F=5, G=7
         int baseSemitone = semitones[letter - 'A'];
 
         // 2. Parse optional accidental (# or b, multiple allowed: ## or bb)
@@ -177,9 +178,8 @@ public:
         if (midiNote < 0 || midiNote > 127)
             return {};
 
-        static const char* noteNames[] = {
-            "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
-        };
+        static const char* noteNames[] = {"C",  "C#", "D",  "D#", "E",  "F",
+                                          "F#", "G",  "G#", "A",  "A#", "B"};
 
         int octave = (midiNote / 12) - 1;
         int semitone = midiNote % 12;

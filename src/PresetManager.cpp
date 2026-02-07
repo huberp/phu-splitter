@@ -5,8 +5,7 @@
 // Construction
 // ============================================================================
 
-PresetManager::PresetManager(PhuSplitterAudioProcessor& processor)
-    : processorRef(processor)
+PresetManager::PresetManager(PhuSplitterAudioProcessor& processor) : processorRef(processor)
 {
     // Ensure presets directory exists
     getPresetsDirectory().createDirectory();
@@ -20,8 +19,7 @@ PresetManager::PresetManager(PhuSplitterAudioProcessor& processor)
 
 juce::File PresetManager::getPresetsDirectory() const
 {
-    auto appDataDir = juce::File::getSpecialLocation(
-        juce::File::userApplicationDataDirectory);
+    auto appDataDir = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory);
     return appDataDir.getChildFile("PhuSplitter").getChildFile("Presets");
 }
 
@@ -69,8 +67,8 @@ std::optional<Preset> PresetManager::readPresetFile(const juce::File& file) cons
         {
             int idx = child->getIntAttribute("index", -1);
             if (idx >= 0 && idx < static_cast<int>(preset.frequencies.size()))
-                preset.frequencies[static_cast<size_t>(idx)] =
-                    static_cast<float>(child->getDoubleAttribute("value", defaults[static_cast<size_t>(idx)]));
+                preset.frequencies[static_cast<size_t>(idx)] = static_cast<float>(
+                    child->getDoubleAttribute("value", defaults[static_cast<size_t>(idx)]));
         }
     }
 
@@ -90,7 +88,8 @@ void PresetManager::scanPresets()
     if (!dir.isDirectory())
         return;
 
-    auto files = dir.findChildFiles(juce::File::findFiles, false, juce::String("*") + PRESET_FILE_EXTENSION);
+    auto files =
+        dir.findChildFiles(juce::File::findFiles, false, juce::String("*") + PRESET_FILE_EXTENSION);
     files.sort();
 
     for (auto& file : files)

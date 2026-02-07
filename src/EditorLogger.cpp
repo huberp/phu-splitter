@@ -1,4 +1,4 @@
-#ifndef NDEBUG  // Debug builds only
+#ifndef NDEBUG // Debug builds only
 
 #include "EditorLogger.h"
 #include "PluginEditor.h"
@@ -26,7 +26,7 @@ void EditorLogger::markCurrentThreadAsAudioThread() noexcept
 void EditorLogger::requestAsyncUpdate() noexcept
 {
     // Ensure we only post one pending async update at a time.
-    if (! asyncUpdateRequested.exchange(true, std::memory_order_acq_rel))
+    if (!asyncUpdateRequested.exchange(true, std::memory_order_acq_rel))
         triggerAsyncUpdate();
 }
 
@@ -83,7 +83,7 @@ void EditorLogger::handleAsyncUpdate()
     // If no editor is attached, keep messages queued but don't spin the message loop.
     if (editor == nullptr)
         return;
-    
+
     // Send all messages to the editor
     // 1) Drain realtime (audio-thread) queue first
     for (;;)
@@ -112,7 +112,8 @@ void EditorLogger::handleAsyncUpdate()
     // Emit a dropped-message marker if needed
     const uint32_t dropped = rtDroppedMessages.exchange(0, std::memory_order_relaxed);
     if (dropped > 0)
-        editor->addLogMessage("[Logger] Dropped " + juce::String(dropped) + " realtime log messages");
+        editor->addLogMessage("[Logger] Dropped " + juce::String(dropped) +
+                              " realtime log messages");
 
     // 2) Drain non-realtime queue
     juce::StringArray messages;

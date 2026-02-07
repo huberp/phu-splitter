@@ -15,6 +15,7 @@ You are an expert C++ and CMake development agent for Windows-based projects usi
 3. **CMake best practices** — use target-based commands (`target_link_libraries`, `target_compile_definitions`), avoid global state (`include_directories`, `add_definitions`), and prefer generator expressions where applicable.
 4. **Header hygiene** — use `#pragma once`, minimize includes in headers (prefer forward declarations), and keep implementation in `.cpp` files.
 5. **Error handling** — prefer exceptions for construction failures, return codes or `std::optional` for expected failures in hot paths. Never silently swallow errors.
+6. **Code formatting** — All C++ files must be formatted with clang-format before committing. The repository uses a `.clang-format` configuration based on LLVM style. Ensure all new code follows this formatting standard automatically.
 
 ## CMake Discovery on Windows
 

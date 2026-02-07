@@ -1,6 +1,6 @@
 #include "CrossoverFrequencyBar.h"
-#include "PluginProcessor.h"
 #include "NoteToFreq.h"
+#include "PluginProcessor.h"
 
 // ============================================================================
 // Construction / Destruction
@@ -32,20 +32,22 @@ CrossoverFrequencyBar::~CrossoverFrequencyBar()
 float CrossoverFrequencyBar::freqToX(float freq) const
 {
     auto bar = getBarArea().toFloat();
-    if (bar.getWidth() <= 0.0f) return bar.getX();
+    if (bar.getWidth() <= 0.0f)
+        return bar.getX();
 
     float logMin = std::log(MIN_FREQ);
     float logMax = std::log(MAX_FREQ);
-    float norm   = (std::log(freq) - logMin) / (logMax - logMin);
+    float norm = (std::log(freq) - logMin) / (logMax - logMin);
     return bar.getX() + norm * bar.getWidth();
 }
 
 float CrossoverFrequencyBar::xToFreq(float x) const
 {
     auto bar = getBarArea().toFloat();
-    if (bar.getWidth() <= 0.0f) return MIN_FREQ;
+    if (bar.getWidth() <= 0.0f)
+        return MIN_FREQ;
 
-    float norm   = (x - bar.getX()) / bar.getWidth();
+    float norm = (x - bar.getX()) / bar.getWidth();
     norm = juce::jlimit(0.0f, 1.0f, norm);
     float logMin = std::log(MIN_FREQ);
     float logMax = std::log(MAX_FREQ);
@@ -145,18 +147,15 @@ void CrossoverFrequencyBar::createTextBoxes()
         label->setColour(juce::Label::textWhenEditingColourId, juce::Colours::white);
         label->setColour(juce::Label::backgroundWhenEditingColourId, juce::Colour(0xFF222222));
         label->setColour(juce::Label::outlineWhenEditingColourId, juce::Colours::cyan);
-        
+
         updateTextBoxFromFreq(i); // set initial text after label is created... handled below
 
         const size_t idx = i;
-        label->onTextChange = [this, idx]()
-        {
-            onTextBoxReturnKey(idx);
-        };
+        label->onTextChange = [this, idx]() { onTextBoxReturnKey(idx); };
 
         addAndMakeVisible(label.get());
         freqLabels[i] = std::move(label);
-        
+
         // Now set initial text
         updateTextBoxFromFreq(i);
     }
@@ -170,8 +169,9 @@ void CrossoverFrequencyBar::updateTextBoxFromFreq(size_t index)
 
 void CrossoverFrequencyBar::onTextBoxReturnKey(size_t index)
 {
-    if (!freqLabels[index]) return;
-    
+    if (!freqLabels[index])
+        return;
+
     float typed = parseFreq(freqLabels[index]->getText());
     if (typed <= 0.0f)
     {
@@ -179,7 +179,7 @@ void CrossoverFrequencyBar::onTextBoxReturnKey(size_t index)
         updateTextBoxFromFreq(index);
         return;
     }
-    
+
     // Clamp for ordering consistency
     float clamped = clampFreqForIndex(index, typed);
     freqs[index] = clamped;
@@ -212,7 +212,7 @@ void CrossoverFrequencyBar::pullFreqsFromParams()
     }
     if (changed)
     {
-        resized();  // reposition text boxes under new divider locations
+        resized(); // reposition text boxes under new divider locations
         repaint();
     }
 }
@@ -223,7 +223,7 @@ void CrossoverFrequencyBar::pullFreqsFromParams()
 
 void CrossoverFrequencyBar::timerCallback()
 {
-    if (dragIndex < 0)  // don't overwrite while user is dragging
+    if (dragIndex < 0) // don't overwrite while user is dragging
         pullFreqsFromParams();
 }
 
@@ -268,41 +268,43 @@ int CrossoverFrequencyBar::hitTestDivider(int x) const
 void CrossoverFrequencyBar::paint(juce::Graphics& g)
 {
     auto bar = getBarArea();
-    
+
     // Draw coloured band regions
     for (size_t band = 0; band < NUM_BANDS; ++band)
     {
-        float x0 = (band == 0)            ? static_cast<float>(bar.getX()) : freqToX(freqs[band - 1]);
-        float x1 = (band == NUM_BANDS - 1) ? static_cast<float>(bar.getRight()) : freqToX(freqs[band]);
-        
-        juce::Rectangle<float> bandRect(x0, static_cast<float>(bar.getY()),
-                                         x1 - x0, static_cast<float>(bar.getHeight()));
-        
+        float x0 = (band == 0) ? static_cast<float>(bar.getX()) : freqToX(freqs[band - 1]);
+        float x1 =
+            (band == NUM_BANDS - 1) ? static_cast<float>(bar.getRight()) : freqToX(freqs[band]);
+
+        juce::Rectangle<float> bandRect(x0, static_cast<float>(bar.getY()), x1 - x0,
+                                        static_cast<float>(bar.getHeight()));
+
         g.setColour(juce::Colour(BAND_COLOURS[band]));
         g.fillRect(bandRect);
-        
+
         // Band name label (centred in region, only if wide enough)
         if (bandRect.getWidth() > 30.0f)
         {
             g.setColour(juce::Colours::white.withAlpha(0.85f));
             g.setFont(juce::Font(11.0f, juce::Font::bold));
-            g.drawText(BAND_NAMES[band], bandRect.toNearestInt(), juce::Justification::centred, false);
+            g.drawText(BAND_NAMES[band], bandRect.toNearestInt(), juce::Justification::centred,
+                       false);
         }
     }
-    
+
     // Draw divider lines
     for (size_t i = 0; i < NUM_FREQS; ++i)
     {
         int dx = dividerXForIndex(i);
-        
+
         // Glow when hovered or dragged
         bool dragging = (dragIndex == static_cast<int>(i));
         bool hovering = (hoverIndex == static_cast<int>(i));
         bool active = dragging || hovering;
-        
+
         g.setColour(active ? juce::Colours::cyan : juce::Colours::white.withAlpha(0.8f));
         g.drawVerticalLine(dx, static_cast<float>(bar.getY()), static_cast<float>(bar.getBottom()));
-        
+
         // Slightly thicker handle zone
         if (active)
         {
@@ -310,19 +312,22 @@ void CrossoverFrequencyBar::paint(juce::Graphics& g)
             g.fillRect(dx - 2, bar.getY(), 5, bar.getHeight());
         }
     }
-    
+
     // Draw frequency axis ticks at bottom of bar
     g.setColour(juce::Colours::white.withAlpha(0.5f));
     g.setFont(juce::Font(9.0f));
-    
-    static const float tickFreqs[] = { 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000 };
-    static const char* tickLabels[] = { "20", "50", "100", "200", "500", "1k", "2k", "5k", "10k", "20k" };
-    
+
+    static const float tickFreqs[] = {20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000};
+    static const char* tickLabels[] = {"20", "50", "100", "200", "500",
+                                       "1k", "2k", "5k",  "10k", "20k"};
+
     for (int t = 0; t < 10; ++t)
     {
         int tx = static_cast<int>(std::round(freqToX(tickFreqs[t])));
-        g.drawVerticalLine(tx, static_cast<float>(bar.getBottom() - 4), static_cast<float>(bar.getBottom()));
-        g.drawText(tickLabels[t], tx - 15, bar.getBottom() - 14, 30, 12, juce::Justification::centred, false);
+        g.drawVerticalLine(tx, static_cast<float>(bar.getBottom() - 4),
+                           static_cast<float>(bar.getBottom()));
+        g.drawText(tickLabels[t], tx - 15, bar.getBottom() - 14, 30, 12,
+                   juce::Justification::centred, false);
     }
 }
 
@@ -334,10 +339,10 @@ void CrossoverFrequencyBar::resized()
 {
     static constexpr int boxW = 60;
     static constexpr int boxH = 22;
-    
+
     auto textArea = getTextBoxArea();
     int textY = textArea.getY() + (textArea.getHeight() - boxH) / 2;
-    
+
     for (size_t i = 0; i < NUM_FREQS; ++i)
     {
         if (freqLabels[i])
@@ -362,15 +367,16 @@ void CrossoverFrequencyBar::mouseDown(const juce::MouseEvent& e)
 
 void CrossoverFrequencyBar::mouseDrag(const juce::MouseEvent& e)
 {
-    if (dragIndex < 0) return;
-    
+    if (dragIndex < 0)
+        return;
+
     float rawFreq = xToFreq(static_cast<float>(e.x));
     float clamped = clampFreqForIndex(static_cast<size_t>(dragIndex), rawFreq);
-    
+
     freqs[static_cast<size_t>(dragIndex)] = clamped;
     updateTextBoxFromFreq(static_cast<size_t>(dragIndex));
     pushFreqToParam(static_cast<size_t>(dragIndex), clamped);
-    
+
     // Reposition text box under divider
     resized();
     repaint();
@@ -385,9 +391,9 @@ void CrossoverFrequencyBar::mouseUp(const juce::MouseEvent&)
 void CrossoverFrequencyBar::mouseMove(const juce::MouseEvent& e)
 {
     int hit = hitTestDivider(e.x);
-    setMouseCursor(hit >= 0 ? juce::MouseCursor::LeftRightResizeCursor 
+    setMouseCursor(hit >= 0 ? juce::MouseCursor::LeftRightResizeCursor
                             : juce::MouseCursor::NormalCursor);
-    
+
     if (hit != hoverIndex)
     {
         hoverIndex = hit;

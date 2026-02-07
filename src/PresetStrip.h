@@ -1,7 +1,7 @@
 #pragma once
 
-#include <juce_audio_processors/juce_audio_processors.h>
 #include "PresetManager.h"
+#include <juce_audio_processors/juce_audio_processors.h>
 
 class PhuSplitterAudioProcessor;
 
@@ -19,14 +19,14 @@ class PhuSplitterAudioProcessor;
  */
 class PresetStrip : public juce::Component
 {
-public:
+  public:
     explicit PresetStrip(PhuSplitterAudioProcessor& processor);
     ~PresetStrip() override = default;
 
     void resized() override;
     void paint(juce::Graphics& g) override;
 
-private:
+  private:
     /** Rebuild the preset name label from PresetManager state. */
     void updatePresetNameDisplay();
 
@@ -42,12 +42,12 @@ private:
     PhuSplitterAudioProcessor& processorRef;
     PresetManager presetManager;
 
-    juce::TextButton prevButton   { "<" };
-    juce::TextButton nextButton   { ">" };
+    juce::TextButton prevButton{"<"};
+    juce::TextButton nextButton{">"};
     juce::TextButton presetNameButton; // shows current preset name, opens dropdown
-    juce::TextButton saveButton   { "Save" };
-    juce::TextButton newButton    { "+New" };
-    juce::TextButton initButton   { "Init" };
+    juce::TextButton saveButton{"Save"};
+    juce::TextButton newButton{"+New"};
+    juce::TextButton initButton{"Init"};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PresetStrip)
 };
