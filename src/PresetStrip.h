@@ -17,8 +17,7 @@ class PhuSplitterAudioProcessor;
  * - [+New]  opens a dialog to name and save a new preset.
  * - [Init]  resets all crossover frequencies to factory defaults.
  */
-class PresetStrip : public juce::Component
-{
+class PresetStrip : public juce::Component {
   public:
     explicit PresetStrip(PhuSplitterAudioProcessor& processor);
     ~PresetStrip() override = default;

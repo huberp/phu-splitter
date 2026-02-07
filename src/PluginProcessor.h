@@ -10,8 +10,7 @@
 class EditorLogger;
 #endif
 
-class PhuSplitterAudioProcessor : public juce::AudioProcessor, public GlobalsEventListener
-{
+class PhuSplitterAudioProcessor : public juce::AudioProcessor, public GlobalsEventListener {
   public:
     PhuSplitterAudioProcessor();
     ~PhuSplitterAudioProcessor() override;
@@ -42,8 +41,7 @@ class PhuSplitterAudioProcessor : public juce::AudioProcessor, public GlobalsEve
 
 #ifndef NDEBUG // Debug builds only
     // Get the editor logger (for editor registration)
-    EditorLogger* getEditorLogger() const
-    {
+    EditorLogger* getEditorLogger() const {
         return editorLogger.get();
     }
 #endif
@@ -63,8 +61,7 @@ class PhuSplitterAudioProcessor : public juce::AudioProcessor, public GlobalsEve
     };
 
     // Parameter tree state for automatable parameters
-    juce::AudioProcessorValueTreeState& getAPVTS()
-    {
+    juce::AudioProcessorValueTreeState& getAPVTS() {
         return apvts;
     }
 

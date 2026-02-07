@@ -15,8 +15,7 @@ class PhuSplitterAudioProcessor;
  *
  * Dividers are constrained so they can never cross their neighbours.
  */
-class CrossoverFrequencyBar : public juce::Component, public juce::Timer
-{
+class CrossoverFrequencyBar : public juce::Component, public juce::Timer {
   public:
     static constexpr size_t NUM_BANDS = 7;
     static constexpr size_t NUM_FREQS = 6;
@@ -78,8 +77,7 @@ class CrossoverFrequencyBar : public juce::Component, public juce::Timer
     // --- Layout helpers ---
     juce::Rectangle<int> getBarArea() const;
     juce::Rectangle<int> getTextBoxArea() const;
-    int getDividerHitZoneHalfWidth() const
-    {
+    int getDividerHitZoneHalfWidth() const {
         return 6;
     }
     int dividerXForIndex(size_t index) const;

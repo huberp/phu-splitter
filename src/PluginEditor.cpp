@@ -3,8 +3,7 @@
 #include "PluginProcessor.h"
 
 PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudioProcessor& p)
-    : AudioProcessorEditor(&p), audioProcessor(p), presetStrip(p), crossoverBar(p)
-{
+    : AudioProcessorEditor(&p), audioProcessor(p), presetStrip(p), crossoverBar(p) {
     // Add preset strip
     addAndMakeVisible(presetStrip);
 
@@ -48,24 +47,20 @@ PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudi
 #endif
 }
 
-PhuSplitterAudioProcessorEditor::~PhuSplitterAudioProcessorEditor()
-{
+PhuSplitterAudioProcessorEditor::~PhuSplitterAudioProcessorEditor() {
 #ifndef NDEBUG // Debug builds only
     // Unregister from logger
-    if (auto* logger = audioProcessor.getEditorLogger())
-    {
+    if (auto* logger = audioProcessor.getEditorLogger()) {
         logger->clearEditor();
     }
 #endif
 }
 
-void PhuSplitterAudioProcessorEditor::paint(juce::Graphics& g)
-{
+void PhuSplitterAudioProcessorEditor::paint(juce::Graphics& g) {
     g.fillAll(getLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId));
 }
 
-void PhuSplitterAudioProcessorEditor::resized()
-{
+void PhuSplitterAudioProcessorEditor::resized() {
     auto area = getLocalBounds().reduced(10);
 
     // Preset strip at very top
@@ -87,8 +82,7 @@ void PhuSplitterAudioProcessorEditor::resized()
 }
 
 #ifndef NDEBUG // Debug builds only
-void PhuSplitterAudioProcessorEditor::addLogMessage(const juce::String& message)
-{
+void PhuSplitterAudioProcessorEditor::addLogMessage(const juce::String& message) {
     // Get current time
     auto time = juce::Time::getCurrentTime();
     auto timeString = time.formatted("%H:%M:%S");

@@ -22,8 +22,7 @@ class PhuSplitterAudioProcessorEditor;
  *   // or
  *   LOG_MESSAGE(editorLogger, "Your message");
  */
-class EditorLogger : public juce::Logger, public juce::AsyncUpdater
-{
+class EditorLogger : public juce::Logger, public juce::AsyncUpdater {
   public:
     EditorLogger() = default;
     ~EditorLogger() override = default;
@@ -67,8 +66,7 @@ class EditorLogger : public juce::Logger, public juce::AsyncUpdater
     static constexpr int rtQueueCapacity = 1024;
     static constexpr size_t rtMaxMessageBytes = 256;
 
-    struct RtSlot
-    {
+    struct RtSlot {
         std::array<char, rtMaxMessageBytes> text{};
         uint16_t length = 0;
     };
@@ -99,8 +97,7 @@ class EditorLogger : public juce::Logger, public juce::AsyncUpdater
 
 // Convenience macro for instance-scoped logging
 #define LOG_MESSAGE(loggerPtr, msg)                                                                \
-    do                                                                                             \
-    {                                                                                              \
+    do {                                                                                           \
         if ((loggerPtr) != nullptr)                                                                \
             (loggerPtr)->logMessage(msg);                                                          \
     } while (0)
@@ -109,8 +106,7 @@ class EditorLogger : public juce::Logger, public juce::AsyncUpdater
 
 // No-op macro for release builds
 #define LOG_MESSAGE(loggerPtr, msg)                                                                \
-    do                                                                                             \
-    {                                                                                              \
+    do {                                                                                           \
         (void)(loggerPtr);                                                                         \
         (void)(msg);                                                                               \
     } while (0)

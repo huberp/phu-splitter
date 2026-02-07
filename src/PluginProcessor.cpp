@@ -20,11 +20,9 @@ PhuSplitterAudioProcessor::PhuSplitterAudioProcessor()
       editorLogger(std::make_unique<EditorLogger>())
 #endif
       ,
-      apvts(*this, nullptr, "Parameters", createParameterLayout())
-{
+      apvts(*this, nullptr, "Parameters", createParameterLayout()) {
     // Cache raw parameter pointers for audio-thread access
-    for (size_t i = 0; i < NUM_CROSSOVER_FREQS; ++i)
-    {
+    for (size_t i = 0; i < NUM_CROSSOVER_FREQS; ++i) {
         crossoverParamPtrs[i] = apvts.getRawParameterValue(getCrossoverParamID(i));
     }
 
@@ -37,12 +35,10 @@ PhuSplitterAudioProcessor::PhuSplitterAudioProcessor()
 #endif
 }
 
-PhuSplitterAudioProcessor::~PhuSplitterAudioProcessor()
-{
+PhuSplitterAudioProcessor::~PhuSplitterAudioProcessor() {
 }
 
-void PhuSplitterAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
-{
+void PhuSplitterAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
     syncGlobals.updateSampleRate(sampleRate);
 
     // Read current crossover frequencies from parameters
@@ -60,29 +56,24 @@ void PhuSplitterAudioProcessor::prepareToPlay(double sampleRate, int samplesPerB
 #endif
 }
 
-void PhuSplitterAudioProcessor::releaseResources()
-{
+void PhuSplitterAudioProcessor::releaseResources() {
 }
 
 void PhuSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
-                                             juce::MidiBuffer& midiMessages)
-{
+                                             juce::MidiBuffer& midiMessages) {
     juce::ScopedNoDenormals noDenormals;
 
     // Check if crossover frequencies changed from parameter automation
     {
         bool changed = false;
-        for (size_t i = 0; i < NUM_CROSSOVER_FREQS; ++i)
-        {
+        for (size_t i = 0; i < NUM_CROSSOVER_FREQS; ++i) {
             float paramVal = crossoverParamPtrs[i]->load();
-            if (paramVal != currentFreqs[i])
-            {
+            if (paramVal != currentFreqs[i]) {
                 currentFreqs[i] = paramVal;
                 changed = true;
             }
         }
-        if (changed)
-        {
+        if (changed) {
             m_multiBand.setParams(LinkwitzRiley::Slope::DB48, currentFreqs.data(),
                                   NUM_CROSSOVER_FREQS, static_cast<float>(getSampleRate()));
         }
@@ -99,8 +90,7 @@ void PhuSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 #ifndef NDEBUG // Debug builds only
     // Test logging (can be removed later)
     const auto currentRun = syncGlobals.getCurrentRun();
-    if (currentRun % 1000 == 0)
-    {
+    if (currentRun % 1000 == 0) {
         LOG_MESSAGE(editorLogger.get(), "Processed " + juce::String(currentRun) + " audio blocks");
     }
 #endif
@@ -110,8 +100,7 @@ void PhuSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     const int totalOutputChannels = getTotalNumOutputChannels();
 
     // We need at least stereo input
-    if (getTotalNumInputChannels() < 2)
-    {
+    if (getTotalNumInputChannels() < 2) {
         syncGlobals.finishRun(numSamples);
         return;
     }
@@ -125,25 +114,21 @@ void PhuSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     std::array<float, NUM_BANDS> bandsL;
     std::array<float, NUM_BANDS> bandsR;
 
-    for (int i = 0; i < numSamples; ++i)
-    {
+    for (int i = 0; i < numSamples; ++i) {
         // Process this sample through the multiband crossover
         m_multiBand.processSample(inputL[i], inputR[i], bandsL.data(), bandsR.data());
 
         // Write each band to corresponding stereo output channel pair
         // Band 0 -> channels 0,1 (after input); Band 1 -> channels 2,3; etc.
-        for (size_t band = 0; band < NUM_BANDS; ++band)
-        {
+        for (size_t band = 0; band < NUM_BANDS; ++band) {
             const int leftChannel = static_cast<int>(band * 2);
             const int rightChannel = leftChannel + 1;
 
-            if (leftChannel < totalOutputChannels)
-            {
+            if (leftChannel < totalOutputChannels) {
                 float* outL = buffer.getWritePointer(leftChannel);
                 outL[i] = bandsL[band];
             }
-            if (rightChannel < totalOutputChannels)
-            {
+            if (rightChannel < totalOutputChannels) {
                 float* outR = buffer.getWritePointer(rightChannel);
                 outR[i] = bandsR[band];
             }
@@ -154,14 +139,12 @@ void PhuSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     syncGlobals.finishRun(buffer.getNumSamples());
 }
 
-juce::AudioProcessorEditor* PhuSplitterAudioProcessor::createEditor()
-{
+juce::AudioProcessorEditor* PhuSplitterAudioProcessor::createEditor() {
     auto* editor = new PhuSplitterAudioProcessorEditor(*this);
 
 #ifndef NDEBUG // Debug builds only
     // Register editor with logger
-    if (editorLogger)
-    {
+    if (editorLogger) {
         editorLogger->setEditor(editor);
         LOG_MESSAGE(editorLogger.get(), "Editor opened");
     }
@@ -170,34 +153,27 @@ juce::AudioProcessorEditor* PhuSplitterAudioProcessor::createEditor()
     return editor;
 }
 
-bool PhuSplitterAudioProcessor::hasEditor() const
-{
+bool PhuSplitterAudioProcessor::hasEditor() const {
     return true;
 }
 
-const juce::String PhuSplitterAudioProcessor::getName() const
-{
+const juce::String PhuSplitterAudioProcessor::getName() const {
     return "PhuSplitter";
 }
-bool PhuSplitterAudioProcessor::acceptsMidi() const
-{
+bool PhuSplitterAudioProcessor::acceptsMidi() const {
     return false;
 }
-bool PhuSplitterAudioProcessor::producesMidi() const
-{
+bool PhuSplitterAudioProcessor::producesMidi() const {
     return false;
 }
-bool PhuSplitterAudioProcessor::isMidiEffect() const
-{
+bool PhuSplitterAudioProcessor::isMidiEffect() const {
     return false;
 }
-double PhuSplitterAudioProcessor::getTailLengthSeconds() const
-{
+double PhuSplitterAudioProcessor::getTailLengthSeconds() const {
     return 0.0;
 }
 
-bool PhuSplitterAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
-{
+bool PhuSplitterAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const {
     // Check if input is stereo
     if (layouts.getMainInputChannelSet() != juce::AudioChannelSet::stereo())
         return false;
@@ -207,8 +183,7 @@ bool PhuSplitterAudioProcessor::isBusesLayoutSupported(const BusesLayout& layout
         return false;
 
     // Each output bus must be stereo
-    for (const auto& bus : layouts.outputBuses)
-    {
+    for (const auto& bus : layouts.outputBuses) {
         if (bus != juce::AudioChannelSet::stereo())
             return false;
     }
@@ -216,34 +191,27 @@ bool PhuSplitterAudioProcessor::isBusesLayoutSupported(const BusesLayout& layout
     return true;
 }
 
-int PhuSplitterAudioProcessor::getNumPrograms()
-{
+int PhuSplitterAudioProcessor::getNumPrograms() {
     return 1;
 }
-int PhuSplitterAudioProcessor::getCurrentProgram()
-{
+int PhuSplitterAudioProcessor::getCurrentProgram() {
     return 0;
 }
-void PhuSplitterAudioProcessor::setCurrentProgram(int)
-{
+void PhuSplitterAudioProcessor::setCurrentProgram(int) {
 }
-const juce::String PhuSplitterAudioProcessor::getProgramName(int)
-{
+const juce::String PhuSplitterAudioProcessor::getProgramName(int) {
     return "Default";
 }
-void PhuSplitterAudioProcessor::changeProgramName(int, const juce::String&)
-{
+void PhuSplitterAudioProcessor::changeProgramName(int, const juce::String&) {
 }
 
-void PhuSplitterAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
-{
+void PhuSplitterAudioProcessor::getStateInformation(juce::MemoryBlock& destData) {
     auto state = apvts.copyState();
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
     copyXmlToBinary(*xml, destData);
 }
 
-void PhuSplitterAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
-{
+void PhuSplitterAudioProcessor::setStateInformation(const void* data, int sizeInBytes) {
     std::unique_ptr<juce::XmlElement> xml(getXmlFromBinary(data, sizeInBytes));
     if (xml && xml->hasTagName(apvts.state.getType()))
         apvts.replaceState(juce::ValueTree::fromXml(*xml));
@@ -253,21 +221,18 @@ void PhuSplitterAudioProcessor::setStateInformation(const void* data, int sizeIn
 // Parameter helpers
 // ============================================================================
 
-juce::String PhuSplitterAudioProcessor::getCrossoverParamID(size_t index)
-{
+juce::String PhuSplitterAudioProcessor::getCrossoverParamID(size_t index) {
     return "crossover_freq_" + juce::String(static_cast<int>(index + 1));
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout
-PhuSplitterAudioProcessor::createParameterLayout()
-{
+PhuSplitterAudioProcessor::createParameterLayout() {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
 
     static const juce::StringArray bandLabels = {"Sub/Bass",  "Bass/LoMid", "LoMid/Mid",
                                                  "Mid/HiMid", "HiMid/Pres", "Pres/Brill"};
 
-    for (size_t i = 0; i < NUM_CROSSOVER_FREQS; ++i)
-    {
+    for (size_t i = 0; i < NUM_CROSSOVER_FREQS; ++i) {
         auto paramID = getCrossoverParamID(i);
         auto name = "XOver " + bandLabels[static_cast<int>(i)];
 
@@ -282,18 +247,15 @@ PhuSplitterAudioProcessor::createParameterLayout()
 }
 
 std::array<float, PhuSplitterAudioProcessor::NUM_CROSSOVER_FREQS>
-PhuSplitterAudioProcessor::getCrossoverFrequencies() const
-{
+PhuSplitterAudioProcessor::getCrossoverFrequencies() const {
     std::array<float, NUM_CROSSOVER_FREQS> freqs;
     for (size_t i = 0; i < NUM_CROSSOVER_FREQS; ++i)
         freqs[i] = crossoverParamPtrs[i]->load();
     return freqs;
 }
 
-void PhuSplitterAudioProcessor::setCrossoverFrequency(size_t index, float freqHz)
-{
-    if (index < NUM_CROSSOVER_FREQS)
-    {
+void PhuSplitterAudioProcessor::setCrossoverFrequency(size_t index, float freqHz) {
+    if (index < NUM_CROSSOVER_FREQS) {
         auto* param = apvts.getParameter(getCrossoverParamID(index));
         if (param)
             param->setValueNotifyingHost(param->convertTo0to1(freqHz));
@@ -301,7 +263,6 @@ void PhuSplitterAudioProcessor::setCrossoverFrequency(size_t index, float freqHz
 }
 
 // This creates new instances of the plugin
-juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
-{
+juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
     return new PhuSplitterAudioProcessor();
 }

@@ -6,6 +6,6 @@ PointerAlignment: Left
 ReferenceAlignment: Left
 AllowShortFunctionsOnASingleLine: None
 AllowShortIfStatementsOnASingleLine: Never
-BreakBeforeBraces: Allman
+BreakBeforeBraces: Attach
 IndentCaseLabels: true
 SpaceBeforeParens: ControlStatements

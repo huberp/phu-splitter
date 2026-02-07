@@ -16,8 +16,7 @@
  * Template parameter SampleType can be float or double.
  */
 
-namespace LinkwitzRiley
-{
+namespace LinkwitzRiley {
 
 // ============================================================================
 // Enums
@@ -28,28 +27,18 @@ namespace LinkwitzRiley
  * DB24 = 24 dB/octave (4th order, 2 cascaded biquads)
  * DB48 = 48 dB/octave (8th order, 4 cascaded biquads)
  */
-enum class Slope
-{
-    DB24 = 24,
-    DB48 = 48
-};
+enum class Slope { DB24 = 24, DB48 = 48 };
 
 /**
  * Filter type enumeration
  */
-enum class FilterType
-{
-    LowPass,
-    HighPass,
-    AllPass
-};
+enum class FilterType { LowPass, HighPass, AllPass };
 
 // ============================================================================
 // Constants - Q values for Butterworth filters
 // ============================================================================
 
-namespace Constants
-{
+namespace Constants {
 // LR4 (24dB/oct) = 2nd order Butterworth squared: Q = 1/sqrt(2) = 0.7071
 template <typename T> constexpr T Q_LR4 = static_cast<T>(0.7071067811865476);
 
@@ -70,15 +59,13 @@ template <typename T> constexpr T PI = static_cast<T>(3.14159265358979323846);
 /**
  * Biquad filter state (delay line history)
  */
-template <typename SampleType> struct BiquadState
-{
+template <typename SampleType> struct BiquadState {
     SampleType x1 = static_cast<SampleType>(0); // previous input sample
     SampleType x2 = static_cast<SampleType>(0); // input sample before x1
     SampleType y1 = static_cast<SampleType>(0); // previous output sample
     SampleType y2 = static_cast<SampleType>(0); // output sample before y1
 
-    void reset()
-    {
+    void reset() {
         x1 = x2 = y1 = y2 = static_cast<SampleType>(0);
     }
 };
@@ -86,8 +73,7 @@ template <typename SampleType> struct BiquadState
 /**
  * Biquad filter coefficients (normalized)
  */
-template <typename SampleType> struct BiquadCoeffs
-{
+template <typename SampleType> struct BiquadCoeffs {
     SampleType b0 = static_cast<SampleType>(1); // feedforward coefficient 0
     SampleType b1 = static_cast<SampleType>(0); // feedforward coefficient 1
     SampleType b2 = static_cast<SampleType>(0); // feedforward coefficient 2
@@ -109,8 +95,7 @@ template <typename SampleType> struct BiquadCoeffs
  */
 template <typename SampleType>
 BiquadCoeffs<SampleType> calcBiquadCoeffsWithQ(FilterType type, SampleType freq,
-                                               SampleType sampleRate, SampleType Q)
-{
+                                               SampleType sampleRate, SampleType Q) {
     const SampleType omega =
         static_cast<SampleType>(2) * Constants::PI<SampleType> * freq / sampleRate;
     const SampleType sn = std::sin(omega);
@@ -119,8 +104,7 @@ BiquadCoeffs<SampleType> calcBiquadCoeffsWithQ(FilterType type, SampleType freq,
 
     SampleType b0, b1, b2, a0, a1, a2;
 
-    switch (type)
-    {
+    switch (type) {
         case FilterType::LowPass:
             b0 = (static_cast<SampleType>(1) - cs) / static_cast<SampleType>(2);
             b1 = static_cast<SampleType>(1) - cs;
@@ -173,8 +157,7 @@ BiquadCoeffs<SampleType> calcBiquadCoeffsWithQ(FilterType type, SampleType freq,
  * LP/HP: LR4 = 2 stages, LR8 = 4 stages
  * Allpass (for phase matching LP+HP sum): LR4 = 1 stage, LR8 = 2 stages
  */
-template <typename SampleType> class LinkwitzRileyFilter
-{
+template <typename SampleType> class LinkwitzRileyFilter {
   public:
     LinkwitzRileyFilter() = default;
 
@@ -185,16 +168,14 @@ template <typename SampleType> class LinkwitzRileyFilter
      * @param freq Cutoff frequency in Hz
      * @param sampleRate Sample rate in Hz
      */
-    LinkwitzRileyFilter(FilterType type, Slope slope, SampleType freq, SampleType sampleRate)
-    {
+    LinkwitzRileyFilter(FilterType type, Slope slope, SampleType freq, SampleType sampleRate) {
         setParams(type, slope, freq, sampleRate);
     }
 
     /**
      * Update filter parameters
      */
-    void setParams(FilterType type, Slope slope, SampleType freq, SampleType sampleRate)
-    {
+    void setParams(FilterType type, Slope slope, SampleType freq, SampleType sampleRate) {
         m_type = type;
         m_slope = slope;
         m_freq = freq;
@@ -203,13 +184,10 @@ template <typename SampleType> class LinkwitzRileyFilter
         // Determine number of stages based on filter type and slope
         // LP/HP: LR4 = 2 stages, LR8 = 4 stages
         // Allpass (for phase matching LP+HP sum): LR4 = 1 stage, LR8 = 2 stages
-        if (type == FilterType::AllPass)
-        {
+        if (type == FilterType::AllPass) {
             // Allpass for phase compensation has HALF the stages of LP/HP
             m_numStages = (slope == Slope::DB48) ? 2 : 1;
-        }
-        else
-        {
+        } else {
             m_numStages = (slope == Slope::DB48) ? 4 : 2;
         }
 
@@ -218,34 +196,26 @@ template <typename SampleType> class LinkwitzRileyFilter
         m_coeffsList.resize(m_numStages);
 
         // Calculate coefficients for each stage with appropriate Q
-        if (type == FilterType::AllPass)
-        {
+        if (type == FilterType::AllPass) {
             // Allpass for phase compensation
-            if (slope == Slope::DB24)
-            {
+            if (slope == Slope::DB24) {
                 // LR4 LP+HP = 2nd order allpass with Q = 0.7071
                 m_coeffsList[0] = calcBiquadCoeffsWithQ<SampleType>(
                     FilterType::AllPass, freq, sampleRate, Constants::Q_LR4<SampleType>);
-            }
-            else
-            {
+            } else {
                 // LR8 LP+HP = 4th order allpass with Q1 = 0.5412, Q2 = 1.3065
                 m_coeffsList[0] = calcBiquadCoeffsWithQ<SampleType>(
                     FilterType::AllPass, freq, sampleRate, Constants::Q_LR8_1<SampleType>);
                 m_coeffsList[1] = calcBiquadCoeffsWithQ<SampleType>(
                     FilterType::AllPass, freq, sampleRate, Constants::Q_LR8_2<SampleType>);
             }
-        }
-        else if (slope == Slope::DB24)
-        {
+        } else if (slope == Slope::DB24) {
             // LR4: 2 stages, both with Q = 0.7071
             auto c = calcBiquadCoeffsWithQ<SampleType>(type, freq, sampleRate,
                                                        Constants::Q_LR4<SampleType>);
             m_coeffsList[0] = c;
             m_coeffsList[1] = c;
-        }
-        else
-        {
+        } else {
             // LR8: 4 stages - stages 1,2 with Q1, stages 3,4 with Q2
             auto c1 = calcBiquadCoeffsWithQ<SampleType>(type, freq, sampleRate,
                                                         Constants::Q_LR8_1<SampleType>);
@@ -261,10 +231,8 @@ template <typename SampleType> class LinkwitzRileyFilter
     /**
      * Reset all filter state (clear delay line history)
      */
-    void reset()
-    {
-        for (auto& stage : m_stages)
-        {
+    void reset() {
+        for (auto& stage : m_stages) {
             stage.reset();
         }
     }
@@ -274,11 +242,9 @@ template <typename SampleType> class LinkwitzRileyFilter
      * @param x Input sample
      * @return Filtered output sample
      */
-    SampleType processSample(SampleType x)
-    {
+    SampleType processSample(SampleType x) {
         SampleType y = x;
-        for (size_t i = 0; i < m_numStages; ++i)
-        {
+        for (size_t i = 0; i < m_numStages; ++i) {
             const auto& c = m_coeffsList[i];
             auto& s = m_stages[i];
 
@@ -292,24 +258,19 @@ template <typename SampleType> class LinkwitzRileyFilter
         return y;
     }
 
-    FilterType getType() const
-    {
+    FilterType getType() const {
         return m_type;
     }
-    Slope getSlope() const
-    {
+    Slope getSlope() const {
         return m_slope;
     }
-    SampleType getFreq() const
-    {
+    SampleType getFreq() const {
         return m_freq;
     }
-    SampleType getSampleRate() const
-    {
+    SampleType getSampleRate() const {
         return m_sampleRate;
     }
-    size_t getNumStages() const
-    {
+    size_t getNumStages() const {
         return m_numStages;
     }
 
@@ -331,8 +292,7 @@ template <typename SampleType> class LinkwitzRileyFilter
  * Stereo-capable Linkwitz-Riley filter class
  * Wraps two mono filters for left and right channels
  */
-template <typename SampleType> class StereoLinkwitzRileyFilter
-{
+template <typename SampleType> class StereoLinkwitzRileyFilter {
   public:
     StereoLinkwitzRileyFilter() = default;
 
@@ -340,15 +300,13 @@ template <typename SampleType> class StereoLinkwitzRileyFilter
      * Create a new stereo Linkwitz-Riley filter
      */
     StereoLinkwitzRileyFilter(FilterType type, Slope slope, SampleType freq, SampleType sampleRate)
-        : m_left(type, slope, freq, sampleRate), m_right(type, slope, freq, sampleRate)
-    {
+        : m_left(type, slope, freq, sampleRate), m_right(type, slope, freq, sampleRate) {
     }
 
     /**
      * Update filter parameters for both channels
      */
-    void setParams(FilterType type, Slope slope, SampleType freq, SampleType sampleRate)
-    {
+    void setParams(FilterType type, Slope slope, SampleType freq, SampleType sampleRate) {
         m_left.setParams(type, slope, freq, sampleRate);
         m_right.setParams(type, slope, freq, sampleRate);
     }
@@ -356,8 +314,7 @@ template <typename SampleType> class StereoLinkwitzRileyFilter
     /**
      * Reset filter state for both channels
      */
-    void reset()
-    {
+    void reset() {
         m_left.reset();
         m_right.reset();
     }
@@ -365,18 +322,15 @@ template <typename SampleType> class StereoLinkwitzRileyFilter
     /**
      * Process a single stereo sample
      */
-    void processSample(SampleType inL, SampleType inR, SampleType& outL, SampleType& outR)
-    {
+    void processSample(SampleType inL, SampleType inR, SampleType& outL, SampleType& outR) {
         outL = m_left.processSample(inL);
         outR = m_right.processSample(inR);
     }
 
-    LinkwitzRileyFilter<SampleType>& getLeft()
-    {
+    LinkwitzRileyFilter<SampleType>& getLeft() {
         return m_left;
     }
-    LinkwitzRileyFilter<SampleType>& getRight()
-    {
+    LinkwitzRileyFilter<SampleType>& getRight() {
         return m_right;
     }
 
@@ -393,8 +347,7 @@ template <typename SampleType> class StereoLinkwitzRileyFilter
  * 2-band stereo crossover filter
  * Splits signal into low-pass and high-pass bands at the crossover frequency
  */
-template <typename SampleType> class CrossOver
-{
+template <typename SampleType> class CrossOver {
   public:
     CrossOver() = default;
 
@@ -404,15 +357,13 @@ template <typename SampleType> class CrossOver
     CrossOver(Slope slope, SampleType freq, SampleType sampleRate)
         : m_slope(slope), m_lp(FilterType::LowPass, slope, freq, sampleRate),
           m_hp(FilterType::HighPass, slope, freq, sampleRate),
-          m_ap(FilterType::AllPass, slope, freq, sampleRate)
-    {
+          m_ap(FilterType::AllPass, slope, freq, sampleRate) {
     }
 
     /**
      * Update crossover parameters
      */
-    void setParams(Slope slope, SampleType freq, SampleType sampleRate)
-    {
+    void setParams(Slope slope, SampleType freq, SampleType sampleRate) {
         m_slope = slope;
         m_lp.setParams(FilterType::LowPass, slope, freq, sampleRate);
         m_hp.setParams(FilterType::HighPass, slope, freq, sampleRate);
@@ -422,8 +373,7 @@ template <typename SampleType> class CrossOver
     /**
      * Reset all filter states
      */
-    void reset()
-    {
+    void reset() {
         m_lp.reset();
         m_hp.reset();
         m_ap.reset();
@@ -433,22 +383,18 @@ template <typename SampleType> class CrossOver
      * Process a single stereo sample and split into LP and HP bands
      */
     void processSample(SampleType inL, SampleType inR, SampleType& lpL, SampleType& lpR,
-                       SampleType& hpL, SampleType& hpR)
-    {
+                       SampleType& hpL, SampleType& hpR) {
         m_lp.processSample(inL, inR, lpL, lpR);
         m_hp.processSample(inL, inR, hpL, hpR);
     }
 
-    StereoLinkwitzRileyFilter<SampleType>& getLowPass()
-    {
+    StereoLinkwitzRileyFilter<SampleType>& getLowPass() {
         return m_lp;
     }
-    StereoLinkwitzRileyFilter<SampleType>& getHighPass()
-    {
+    StereoLinkwitzRileyFilter<SampleType>& getHighPass() {
         return m_hp;
     }
-    StereoLinkwitzRileyFilter<SampleType>& getAllPass()
-    {
+    StereoLinkwitzRileyFilter<SampleType>& getAllPass() {
         return m_ap;
     }
 
@@ -474,8 +420,7 @@ template <typename SampleType> class CrossOver
  * Band 2 = LP(f2) of HP(f1) output + AP(f3) + AP(f4) + ...
  * Band N = HP(fN-1) output (no allpass needed)
  */
-template <typename SampleType> class MultiBandN
-{
+template <typename SampleType> class MultiBandN {
   public:
     static constexpr size_t MAX_BANDS = 7;
     static constexpr size_t MAX_FREQS = 6;
@@ -490,18 +435,15 @@ template <typename SampleType> class MultiBandN
      * @param sampleRate Sample rate in Hz
      * Example: 3 bands needs 2 frequencies: {300, 3000} -> bands: 0-300, 300-3000, 3000+
      */
-    MultiBandN(Slope slope, const SampleType* freqs, size_t numFreqs, SampleType sampleRate)
-    {
+    MultiBandN(Slope slope, const SampleType* freqs, size_t numFreqs, SampleType sampleRate) {
         initialize(slope, freqs, numFreqs, sampleRate);
     }
 
     /**
      * Initialize the crossover
      */
-    void initialize(Slope slope, const SampleType* freqs, size_t numFreqs, SampleType sampleRate)
-    {
-        if (numFreqs < 1 || numFreqs > MAX_FREQS)
-        {
+    void initialize(Slope slope, const SampleType* freqs, size_t numFreqs, SampleType sampleRate) {
+        if (numFreqs < 1 || numFreqs > MAX_FREQS) {
             throw std::invalid_argument(
                 "MultiBandN requires 1-6 crossover frequencies (2-7 bands)");
         }
@@ -512,14 +454,12 @@ template <typename SampleType> class MultiBandN
         m_sampleRate = sampleRate;
 
         // Store frequencies
-        for (size_t i = 0; i < numFreqs; ++i)
-        {
+        for (size_t i = 0; i < numFreqs; ++i) {
             m_freqs[i] = freqs[i];
         }
 
         // Create LP and HP filter pairs for each crossover frequency
-        for (size_t i = 0; i < numFreqs; ++i)
-        {
+        for (size_t i = 0; i < numFreqs; ++i) {
             m_lpFiltersL[i].setParams(FilterType::LowPass, slope, freqs[i], sampleRate);
             m_lpFiltersR[i].setParams(FilterType::LowPass, slope, freqs[i], sampleRate);
             m_hpFiltersL[i].setParams(FilterType::HighPass, slope, freqs[i], sampleRate);
@@ -529,10 +469,8 @@ template <typename SampleType> class MultiBandN
         // Create allpass compensation filters
         // Band i needs allpass at frequencies freqs[i+1] through freqs[numFreqs-1]
         // This compensates for phase shift introduced by LP filters in higher crossover stages
-        for (size_t band = 0; band < numFreqs; ++band)
-        {
-            for (size_t f = band + 1; f < numFreqs; ++f)
-            {
+        for (size_t band = 0; band < numFreqs; ++band) {
+            for (size_t f = band + 1; f < numFreqs; ++f) {
                 m_allpassL[band][f].setParams(FilterType::AllPass, slope, freqs[f], sampleRate);
                 m_allpassR[band][f].setParams(FilterType::AllPass, slope, freqs[f], sampleRate);
             }
@@ -542,18 +480,15 @@ template <typename SampleType> class MultiBandN
     /**
      * Update crossover parameters
      */
-    void setParams(Slope slope, const SampleType* freqs, size_t numFreqs, SampleType sampleRate)
-    {
-        if (numFreqs != m_numFreqs)
-        {
+    void setParams(Slope slope, const SampleType* freqs, size_t numFreqs, SampleType sampleRate) {
+        if (numFreqs != m_numFreqs) {
             throw std::invalid_argument("Number of frequencies must match original band count");
         }
 
         m_slope = slope;
         m_sampleRate = sampleRate;
 
-        for (size_t i = 0; i < numFreqs; ++i)
-        {
+        for (size_t i = 0; i < numFreqs; ++i) {
             m_freqs[i] = freqs[i];
             m_lpFiltersL[i].setParams(FilterType::LowPass, slope, freqs[i], sampleRate);
             m_lpFiltersR[i].setParams(FilterType::LowPass, slope, freqs[i], sampleRate);
@@ -562,10 +497,8 @@ template <typename SampleType> class MultiBandN
         }
 
         // Update allpass filters
-        for (size_t band = 0; band < numFreqs; ++band)
-        {
-            for (size_t f = band + 1; f < numFreqs; ++f)
-            {
+        for (size_t band = 0; band < numFreqs; ++band) {
+            for (size_t f = band + 1; f < numFreqs; ++f) {
                 m_allpassL[band][f].setParams(FilterType::AllPass, slope, freqs[f], sampleRate);
                 m_allpassR[band][f].setParams(FilterType::AllPass, slope, freqs[f], sampleRate);
             }
@@ -575,10 +508,8 @@ template <typename SampleType> class MultiBandN
     /**
      * Reset all filter states
      */
-    void reset()
-    {
-        for (size_t i = 0; i < m_numFreqs; ++i)
-        {
+    void reset() {
+        for (size_t i = 0; i < m_numFreqs; ++i) {
             m_lpFiltersL[i].reset();
             m_lpFiltersR[i].reset();
             m_hpFiltersL[i].reset();
@@ -586,10 +517,8 @@ template <typename SampleType> class MultiBandN
         }
 
         // Reset allpass filters
-        for (size_t band = 0; band < m_numFreqs; ++band)
-        {
-            for (size_t f = band + 1; f < m_numFreqs; ++f)
-            {
+        for (size_t band = 0; band < m_numFreqs; ++band) {
+            for (size_t f = band + 1; f < m_numFreqs; ++f) {
                 m_allpassL[band][f].reset();
                 m_allpassR[band][f].reset();
             }
@@ -599,16 +528,14 @@ template <typename SampleType> class MultiBandN
     /**
      * Get the number of frequency bands
      */
-    size_t getNumBands() const
-    {
+    size_t getNumBands() const {
         return m_numBands;
     }
 
     /**
      * Get the crossover frequencies
      */
-    const SampleType* getFrequencies() const
-    {
+    const SampleType* getFrequencies() const {
         return m_freqs.data();
     }
 
@@ -626,13 +553,11 @@ template <typename SampleType> class MultiBandN
      * @param bandsL Output array for left channel bands (must have numBands elements)
      * @param bandsR Output array for right channel bands (must have numBands elements)
      */
-    void processSample(SampleType inL, SampleType inR, SampleType* bandsL, SampleType* bandsR)
-    {
+    void processSample(SampleType inL, SampleType inR, SampleType* bandsL, SampleType* bandsR) {
         SampleType inputL = inL;
         SampleType inputR = inR;
 
-        for (size_t f = 0; f < m_numFreqs; ++f)
-        {
+        for (size_t f = 0; f < m_numFreqs; ++f) {
             // Both LP and HP process the SAME input signal
             SampleType lpL = m_lpFiltersL[f].processSample(inputL);
             SampleType lpR = m_lpFiltersR[f].processSample(inputR);
@@ -643,8 +568,7 @@ template <typename SampleType> class MultiBandN
             // Band f needs allpass at frequencies f+1 through numFreqs-1
             SampleType bandL = lpL;
             SampleType bandR = lpR;
-            for (size_t apFreq = f + 1; apFreq < m_numFreqs; ++apFreq)
-            {
+            for (size_t apFreq = f + 1; apFreq < m_numFreqs; ++apFreq) {
                 bandL = m_allpassL[f][apFreq].processSample(bandL);
                 bandR = m_allpassR[f][apFreq].processSample(bandR);
             }
@@ -673,10 +597,8 @@ template <typename SampleType> class MultiBandN
      * @param numSamples Number of samples to process
      */
     void processBlock(const SampleType* inL, const SampleType* inR, SampleType** bandsL,
-                      SampleType** bandsR, size_t numSamples)
-    {
-        for (size_t i = 0; i < numSamples; ++i)
-        {
+                      SampleType** bandsR, size_t numSamples) {
+        for (size_t i = 0; i < numSamples; ++i) {
             // Temporary arrays for this sample
             std::array<SampleType, MAX_BANDS> tempBandsL;
             std::array<SampleType, MAX_BANDS> tempBandsR;
@@ -684,8 +606,7 @@ template <typename SampleType> class MultiBandN
             processSample(inL[i], inR[i], tempBandsL.data(), tempBandsR.data());
 
             // Copy to output buffers
-            for (size_t b = 0; b < m_numBands; ++b)
-            {
+            for (size_t b = 0; b < m_numBands; ++b) {
                 bandsL[b][i] = tempBandsL[b];
                 bandsR[b][i] = tempBandsR[b];
             }
@@ -704,15 +625,12 @@ template <typename SampleType> class MultiBandN
      */
     void sumBands(const SampleType* const* bandsL, const SampleType* const* bandsR,
                   SampleType* outL, SampleType* outR, size_t numSamples,
-                  const SampleType* gains = nullptr)
-    {
-        for (size_t i = 0; i < numSamples; ++i)
-        {
+                  const SampleType* gains = nullptr) {
+        for (size_t i = 0; i < numSamples; ++i) {
             SampleType sumL = static_cast<SampleType>(0);
             SampleType sumR = static_cast<SampleType>(0);
 
-            for (size_t b = 0; b < m_numBands; ++b)
-            {
+            for (size_t b = 0; b < m_numBands; ++b) {
                 SampleType g = gains ? gains[b] : static_cast<SampleType>(1);
                 sumL += g * bandsL[b][i];
                 sumR += g * bandsR[b][i];

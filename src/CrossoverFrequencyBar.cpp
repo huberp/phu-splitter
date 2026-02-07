@@ -7,8 +7,7 @@
 // ============================================================================
 
 CrossoverFrequencyBar::CrossoverFrequencyBar(PhuSplitterAudioProcessor& processor)
-    : processorRef(processor)
-{
+    : processorRef(processor) {
     // Pull initial frequencies from processor parameters
     auto initFreqs = processorRef.getCrossoverFrequencies();
     for (size_t i = 0; i < NUM_FREQS; ++i)
@@ -20,8 +19,7 @@ CrossoverFrequencyBar::CrossoverFrequencyBar(PhuSplitterAudioProcessor& processo
     startTimerHz(15);
 }
 
-CrossoverFrequencyBar::~CrossoverFrequencyBar()
-{
+CrossoverFrequencyBar::~CrossoverFrequencyBar() {
     stopTimer();
 }
 
@@ -29,8 +27,7 @@ CrossoverFrequencyBar::~CrossoverFrequencyBar()
 // Coordinate conversion  (logarithmic frequency axis)
 // ============================================================================
 
-float CrossoverFrequencyBar::freqToX(float freq) const
-{
+float CrossoverFrequencyBar::freqToX(float freq) const {
     auto bar = getBarArea().toFloat();
     if (bar.getWidth() <= 0.0f)
         return bar.getX();
@@ -41,8 +38,7 @@ float CrossoverFrequencyBar::freqToX(float freq) const
     return bar.getX() + norm * bar.getWidth();
 }
 
-float CrossoverFrequencyBar::xToFreq(float x) const
-{
+float CrossoverFrequencyBar::xToFreq(float x) const {
     auto bar = getBarArea().toFloat();
     if (bar.getWidth() <= 0.0f)
         return MIN_FREQ;
@@ -58,28 +54,22 @@ float CrossoverFrequencyBar::xToFreq(float x) const
 // Frequency validation - keep dividers in order with min gap
 // ============================================================================
 
-float CrossoverFrequencyBar::clampFreqForIndex(size_t index, float freq) const
-{
+float CrossoverFrequencyBar::clampFreqForIndex(size_t index, float freq) const {
     float lo = MIN_FREQ;
     float hi = MAX_FREQ;
 
-    if (index == 0)
-    {
+    if (index == 0) {
         // First divider: allow down to MIN_FREQ, but keep a minimum ratio to the next divider
         lo = MIN_FREQ;
         if (NUM_FREQS > 1)
             hi = freqs[1] / MIN_FREQ_RATIO;
         else
             hi = MAX_FREQ;
-    }
-    else if (index == NUM_FREQS - 1)
-    {
+    } else if (index == NUM_FREQS - 1) {
         // Last divider: allow up to MAX_FREQ, but keep a minimum ratio to the previous divider
         lo = freqs[index - 1] * MIN_FREQ_RATIO;
         hi = MAX_FREQ;
-    }
-    else
-    {
+    } else {
         // Middle dividers: constrained between neighboring dividers
         lo = freqs[index - 1] * MIN_FREQ_RATIO;
         hi = freqs[index + 1] / MIN_FREQ_RATIO;
@@ -91,21 +81,18 @@ float CrossoverFrequencyBar::clampFreqForIndex(size_t index, float freq) const
 // Text boxes
 // ============================================================================
 
-static juce::String formatFreq(float hz)
-{
+static juce::String formatFreq(float hz) {
     if (hz >= 1000.0f)
         return juce::String(hz / 1000.0f, 2) + "k";
     return juce::String(static_cast<int>(std::round(hz)));
 }
 
-static float parseFreq(const juce::String& text)
-{
+static float parseFreq(const juce::String& text) {
     juce::String trimmed = text.trim();
     std::string str = trimmed.toStdString();
 
     // Try note name first (e.g. "C#3", "E#1", "Ab4")
-    if (NoteToFreq::looksLikeNoteName(str))
-    {
+    if (NoteToFreq::looksLikeNoteName(str)) {
         auto freq = NoteToFreq::toFrequency(str);
         if (freq.has_value())
             return static_cast<float>(freq.value());
@@ -115,28 +102,23 @@ static float parseFreq(const juce::String& text)
     juce::String lower = trimmed.toLowerCase();
 
     // Handle "k" suffix for kHz
-    if (lower.endsWithChar('k'))
-    {
+    if (lower.endsWithChar('k')) {
         float val = lower.dropLastCharacters(1).getFloatValue();
         return val * 1000.0f;
     }
-    if (lower.endsWith("khz"))
-    {
+    if (lower.endsWith("khz")) {
         float val = lower.dropLastCharacters(3).getFloatValue();
         return val * 1000.0f;
     }
-    if (lower.endsWith("hz"))
-    {
+    if (lower.endsWith("hz")) {
         return lower.dropLastCharacters(2).getFloatValue();
     }
 
     return lower.getFloatValue();
 }
 
-void CrossoverFrequencyBar::createTextBoxes()
-{
-    for (size_t i = 0; i < NUM_FREQS; ++i)
-    {
+void CrossoverFrequencyBar::createTextBoxes() {
+    for (size_t i = 0; i < NUM_FREQS; ++i) {
         auto label = std::make_unique<juce::Label>();
         label->setEditable(false, true, false); // not editable by single click, but by double-click
         label->setJustificationType(juce::Justification::centred);
@@ -161,20 +143,17 @@ void CrossoverFrequencyBar::createTextBoxes()
     }
 }
 
-void CrossoverFrequencyBar::updateTextBoxFromFreq(size_t index)
-{
+void CrossoverFrequencyBar::updateTextBoxFromFreq(size_t index) {
     if (freqLabels[index])
         freqLabels[index]->setText(formatFreq(freqs[index]), juce::dontSendNotification);
 }
 
-void CrossoverFrequencyBar::onTextBoxReturnKey(size_t index)
-{
+void CrossoverFrequencyBar::onTextBoxReturnKey(size_t index) {
     if (!freqLabels[index])
         return;
 
     float typed = parseFreq(freqLabels[index]->getText());
-    if (typed <= 0.0f)
-    {
+    if (typed <= 0.0f) {
         // Invalid: revert to current
         updateTextBoxFromFreq(index);
         return;
@@ -192,26 +171,21 @@ void CrossoverFrequencyBar::onTextBoxReturnKey(size_t index)
 // Push / Pull parameters
 // ============================================================================
 
-void CrossoverFrequencyBar::pushFreqToParam(size_t index, float freq)
-{
+void CrossoverFrequencyBar::pushFreqToParam(size_t index, float freq) {
     processorRef.setCrossoverFrequency(index, freq);
 }
 
-void CrossoverFrequencyBar::pullFreqsFromParams()
-{
+void CrossoverFrequencyBar::pullFreqsFromParams() {
     auto paramFreqs = processorRef.getCrossoverFrequencies();
     bool changed = false;
-    for (size_t i = 0; i < NUM_FREQS; ++i)
-    {
-        if (std::abs(paramFreqs[i] - freqs[i]) > 0.01f)
-        {
+    for (size_t i = 0; i < NUM_FREQS; ++i) {
+        if (std::abs(paramFreqs[i] - freqs[i]) > 0.01f) {
             freqs[i] = paramFreqs[i];
             updateTextBoxFromFreq(i);
             changed = true;
         }
     }
-    if (changed)
-    {
+    if (changed) {
         resized(); // reposition text boxes under new divider locations
         repaint();
     }
@@ -221,8 +195,7 @@ void CrossoverFrequencyBar::pullFreqsFromParams()
 // Timer - sync with DAW automation
 // ============================================================================
 
-void CrossoverFrequencyBar::timerCallback()
-{
+void CrossoverFrequencyBar::timerCallback() {
     if (dragIndex < 0) // don't overwrite while user is dragging
         pullFreqsFromParams();
 }
@@ -231,29 +204,24 @@ void CrossoverFrequencyBar::timerCallback()
 // Layout helpers
 // ============================================================================
 
-juce::Rectangle<int> CrossoverFrequencyBar::getBarArea() const
-{
+juce::Rectangle<int> CrossoverFrequencyBar::getBarArea() const {
     auto area = getLocalBounds();
     // Top part is the coloured bar, bottom 28px are text boxes
     return area.withTrimmedBottom(32);
 }
 
-juce::Rectangle<int> CrossoverFrequencyBar::getTextBoxArea() const
-{
+juce::Rectangle<int> CrossoverFrequencyBar::getTextBoxArea() const {
     auto area = getLocalBounds();
     return area.removeFromBottom(28);
 }
 
-int CrossoverFrequencyBar::dividerXForIndex(size_t index) const
-{
+int CrossoverFrequencyBar::dividerXForIndex(size_t index) const {
     return static_cast<int>(std::round(freqToX(freqs[index])));
 }
 
-int CrossoverFrequencyBar::hitTestDivider(int x) const
-{
+int CrossoverFrequencyBar::hitTestDivider(int x) const {
     int halfZone = getDividerHitZoneHalfWidth();
-    for (size_t i = 0; i < NUM_FREQS; ++i)
-    {
+    for (size_t i = 0; i < NUM_FREQS; ++i) {
         int dx = dividerXForIndex(i);
         if (std::abs(x - dx) <= halfZone)
             return static_cast<int>(i);
@@ -265,13 +233,11 @@ int CrossoverFrequencyBar::hitTestDivider(int x) const
 // Paint
 // ============================================================================
 
-void CrossoverFrequencyBar::paint(juce::Graphics& g)
-{
+void CrossoverFrequencyBar::paint(juce::Graphics& g) {
     auto bar = getBarArea();
 
     // Draw coloured band regions
-    for (size_t band = 0; band < NUM_BANDS; ++band)
-    {
+    for (size_t band = 0; band < NUM_BANDS; ++band) {
         float x0 = (band == 0) ? static_cast<float>(bar.getX()) : freqToX(freqs[band - 1]);
         float x1 =
             (band == NUM_BANDS - 1) ? static_cast<float>(bar.getRight()) : freqToX(freqs[band]);
@@ -283,8 +249,7 @@ void CrossoverFrequencyBar::paint(juce::Graphics& g)
         g.fillRect(bandRect);
 
         // Band name label (centred in region, only if wide enough)
-        if (bandRect.getWidth() > 30.0f)
-        {
+        if (bandRect.getWidth() > 30.0f) {
             g.setColour(juce::Colours::white.withAlpha(0.85f));
             g.setFont(juce::Font(11.0f, juce::Font::bold));
             g.drawText(BAND_NAMES[band], bandRect.toNearestInt(), juce::Justification::centred,
@@ -293,8 +258,7 @@ void CrossoverFrequencyBar::paint(juce::Graphics& g)
     }
 
     // Draw divider lines
-    for (size_t i = 0; i < NUM_FREQS; ++i)
-    {
+    for (size_t i = 0; i < NUM_FREQS; ++i) {
         int dx = dividerXForIndex(i);
 
         // Glow when hovered or dragged
@@ -306,8 +270,7 @@ void CrossoverFrequencyBar::paint(juce::Graphics& g)
         g.drawVerticalLine(dx, static_cast<float>(bar.getY()), static_cast<float>(bar.getBottom()));
 
         // Slightly thicker handle zone
-        if (active)
-        {
+        if (active) {
             g.setColour(juce::Colours::cyan.withAlpha(dragging ? 0.5f : 0.3f));
             g.fillRect(dx - 2, bar.getY(), 5, bar.getHeight());
         }
@@ -321,8 +284,7 @@ void CrossoverFrequencyBar::paint(juce::Graphics& g)
     static const char* tickLabels[] = {"20", "50", "100", "200", "500",
                                        "1k", "2k", "5k",  "10k", "20k"};
 
-    for (int t = 0; t < 10; ++t)
-    {
+    for (int t = 0; t < 10; ++t) {
         int tx = static_cast<int>(std::round(freqToX(tickFreqs[t])));
         g.drawVerticalLine(tx, static_cast<float>(bar.getBottom() - 4),
                            static_cast<float>(bar.getBottom()));
@@ -335,18 +297,15 @@ void CrossoverFrequencyBar::paint(juce::Graphics& g)
 // Resized - position text boxes below dividers
 // ============================================================================
 
-void CrossoverFrequencyBar::resized()
-{
+void CrossoverFrequencyBar::resized() {
     static constexpr int boxW = 60;
     static constexpr int boxH = 22;
 
     auto textArea = getTextBoxArea();
     int textY = textArea.getY() + (textArea.getHeight() - boxH) / 2;
 
-    for (size_t i = 0; i < NUM_FREQS; ++i)
-    {
-        if (freqLabels[i])
-        {
+    for (size_t i = 0; i < NUM_FREQS; ++i) {
+        if (freqLabels[i]) {
             int cx = dividerXForIndex(i);
             int bx = juce::jlimit(0, getWidth() - boxW, cx - boxW / 2);
             freqLabels[i]->setBounds(bx, textY, boxW, boxH);
@@ -358,15 +317,13 @@ void CrossoverFrequencyBar::resized()
 // Mouse interaction for divider dragging
 // ============================================================================
 
-void CrossoverFrequencyBar::mouseDown(const juce::MouseEvent& e)
-{
+void CrossoverFrequencyBar::mouseDown(const juce::MouseEvent& e) {
     dragIndex = hitTestDivider(e.x);
     if (dragIndex >= 0)
         repaint();
 }
 
-void CrossoverFrequencyBar::mouseDrag(const juce::MouseEvent& e)
-{
+void CrossoverFrequencyBar::mouseDrag(const juce::MouseEvent& e) {
     if (dragIndex < 0)
         return;
 
@@ -382,29 +339,24 @@ void CrossoverFrequencyBar::mouseDrag(const juce::MouseEvent& e)
     repaint();
 }
 
-void CrossoverFrequencyBar::mouseUp(const juce::MouseEvent&)
-{
+void CrossoverFrequencyBar::mouseUp(const juce::MouseEvent&) {
     dragIndex = -1;
     repaint();
 }
 
-void CrossoverFrequencyBar::mouseMove(const juce::MouseEvent& e)
-{
+void CrossoverFrequencyBar::mouseMove(const juce::MouseEvent& e) {
     int hit = hitTestDivider(e.x);
     setMouseCursor(hit >= 0 ? juce::MouseCursor::LeftRightResizeCursor
                             : juce::MouseCursor::NormalCursor);
 
-    if (hit != hoverIndex)
-    {
+    if (hit != hoverIndex) {
         hoverIndex = hit;
         repaint();
     }
 }
 
-void CrossoverFrequencyBar::mouseExit(const juce::MouseEvent&)
-{
-    if (hoverIndex >= 0)
-    {
+void CrossoverFrequencyBar::mouseExit(const juce::MouseEvent&) {
+    if (hoverIndex >= 0) {
         hoverIndex = -1;
         repaint();
     }

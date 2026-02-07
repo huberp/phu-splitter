@@ -6,8 +6,7 @@
 
 class PhuSplitterAudioProcessor;
 
-class PhuSplitterAudioProcessorEditor : public juce::AudioProcessorEditor
-{
+class PhuSplitterAudioProcessorEditor : public juce::AudioProcessorEditor {
   public:
     PhuSplitterAudioProcessorEditor(PhuSplitterAudioProcessor&);
     ~PhuSplitterAudioProcessorEditor() override;

@@ -15,18 +15,15 @@
  *   globals.addEventListener(&myListener);
  *   globals.fireBPMChanged(bpmEvent);
  */
-class GlobalsEventSource : public EventSource<GlobalsEventListener>
-{
+class GlobalsEventSource : public EventSource<GlobalsEventListener> {
   public:
     /**
      * Fire a BPM changed event to all listeners
      * @param event The BPM event to fire
      */
-    void fireBPMChanged(const BPMEvent& event)
-    {
+    void fireBPMChanged(const BPMEvent& event) {
         // Iterate by index to handle potential modifications during iteration
-        for (size_t i = 0; i < listeners.size(); ++i)
-        {
+        for (size_t i = 0; i < listeners.size(); ++i) {
             listeners[i]->onBPMChanged(event);
         }
     }
@@ -35,10 +32,8 @@ class GlobalsEventSource : public EventSource<GlobalsEventListener>
      * Fire an IsPlaying changed event to all listeners
      * @param event The IsPlaying event to fire
      */
-    void fireIsPlayingChanged(const IsPlayingEvent& event)
-    {
-        for (size_t i = 0; i < listeners.size(); ++i)
-        {
+    void fireIsPlayingChanged(const IsPlayingEvent& event) {
+        for (size_t i = 0; i < listeners.size(); ++i) {
             listeners[i]->onIsPlayingChanged(event);
         }
     }
@@ -47,10 +42,8 @@ class GlobalsEventSource : public EventSource<GlobalsEventListener>
      * Fire a SampleRate changed event to all listeners
      * @param event The SampleRate event to fire
      */
-    void fireSampleRateChanged(const SampleRateEvent& event)
-    {
-        for (size_t i = 0; i < listeners.size(); ++i)
-        {
+    void fireSampleRateChanged(const SampleRateEvent& event) {
+        for (size_t i = 0; i < listeners.size(); ++i) {
             listeners[i]->onSampleRateChanged(event);
         }
     }
@@ -66,12 +59,10 @@ class GlobalsEventSource : public EventSource<GlobalsEventListener>
  *   globals.addEventListener(&myListener);
  *   globals.updateDAWGlobals(samples, numSamples, midiBuffer, position);
  */
-class SyncGlobals : public GlobalsEventSource
-{
+class SyncGlobals : public GlobalsEventSource {
   private:
     // PPQ (Pulses Per Quarter) base values
-    struct PPQBaseValue
-    {
+    struct PPQBaseValue {
         double msec = 60000.0; // milliseconds per minute
         double noteNum = 1.0;
         double noteDenom = 4.0;
@@ -100,8 +91,7 @@ class SyncGlobals : public GlobalsEventSource
      * Mark end of processing run
      * @param numSamples Number of samples processed in this block
      */
-    void finishRun(int numSamples)
-    {
+    void finishRun(int numSamples) {
         runs++;
         samplesCount += numSamples;
     }
@@ -110,39 +100,34 @@ class SyncGlobals : public GlobalsEventSource
      * Get current run count, i.e. number of processBlock calls
      * Method finishRun increments this value
      */
-    long getCurrentRun() const
-    {
+    long getCurrentRun() const {
         return runs;
     }
     /**
      * Get total samples processed
      */
-    long long getCurrentSampleCount() const
-    {
+    long long getCurrentSampleCount() const {
         return samplesCount;
     }
 
     /**
      * Get current BPM
      */
-    double getBPM() const
-    {
+    double getBPM() const {
         return bpm;
     }
 
     /**
      * Get current sample rate
      */
-    double getSampleRate() const
-    {
+    double getSampleRate() const {
         return sampleRate;
     }
 
     /**
      * Check if DAW is playing
      */
-    bool isDawPlaying() const
-    {
+    bool isDawPlaying() const {
         return isPlaying;
     }
 
@@ -150,17 +135,14 @@ class SyncGlobals : public GlobalsEventSource
      * Update sample rate (fires event if changed)
      * @param newSampleRate New sample rate in Hz
      */
-    void updateSampleRate(double newSampleRate)
-    {
-        if (newSampleRate != sampleRate)
-        {
+    void updateSampleRate(double newSampleRate) {
+        if (newSampleRate != sampleRate) {
             double oldSampleRate = sampleRate;
             sampleRate = newSampleRate;
             sampleRateByMsec = newSampleRate / 1000.0;
 
             // Recalculate samples per beat if we have a BPM
-            if (bpm > 0.0)
-            {
+            if (bpm > 0.0) {
                 samplesPerBeat = msecPerBeat * sampleRateByMsec;
             }
 
@@ -185,8 +167,7 @@ class SyncGlobals : public GlobalsEventSource
      */
     Event::Context
     updateDAWGlobals(const juce::AudioBuffer<float>& buffer, const juce::MidiBuffer& midiBuffer,
-                     const juce::Optional<juce::AudioPlayHead::PositionInfo>& positionInfo)
-    {
+                     const juce::Optional<juce::AudioPlayHead::PositionInfo>& positionInfo) {
         // Create context for this frame
         Event::Context ctx;
         ctx.buffer = &buffer;
@@ -197,14 +178,11 @@ class SyncGlobals : public GlobalsEventSource
 
         // Extract playing state from position info
 
-        if (positionInfo.hasValue())
-        {
+        if (positionInfo.hasValue()) {
             // Extract BPM if available
-            if (auto bpmValue = positionInfo->getBpm())
-            {
+            if (auto bpmValue = positionInfo->getBpm()) {
                 double newBPM = *bpmValue;
-                if (newBPM != bpm && newBPM > 0.0)
-                {
+                if (newBPM != bpm && newBPM > 0.0) {
                     BPMEvent event;
                     event.source = this;
                     event.context = ctx;
@@ -222,8 +200,7 @@ class SyncGlobals : public GlobalsEventSource
 
             bool newIsPlaying = positionInfo->getIsPlaying();
             // Check playing state change
-            if (newIsPlaying != isPlaying)
-            {
+            if (newIsPlaying != isPlaying) {
                 IsPlayingEvent event;
                 event.source = this;
                 event.context = ctx;

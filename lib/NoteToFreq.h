@@ -20,16 +20,14 @@
  * Uses A4 = 440 Hz equal temperament tuning.
  * All parsing is case-insensitive for the note letter.
  */
-class NoteToFreq
-{
+class NoteToFreq {
   public:
     /**
      * Convert a note name string to a frequency in Hz.
      * @param noteName  e.g. "A4", "C#3", "Eb2", "E#1"
      * @return frequency in Hz, or std::nullopt if parsing fails
      */
-    static std::optional<double> toFrequency(const std::string& noteName)
-    {
+    static std::optional<double> toFrequency(const std::string& noteName) {
         if (noteName.empty())
             return std::nullopt;
 
@@ -45,8 +43,7 @@ class NoteToFreq
      * @param noteName  e.g. "A4", "C#3", "Eb2"
      * @return MIDI note number, or std::nullopt if parsing fails
      */
-    static std::optional<int> noteNameToMidi(const std::string& noteName)
-    {
+    static std::optional<int> noteNameToMidi(const std::string& noteName) {
         if (noteName.empty())
             return std::nullopt;
 
@@ -65,23 +62,17 @@ class NoteToFreq
 
         // 2. Parse optional accidental (# or b, multiple allowed: ## or bb)
         int accidental = 0;
-        while (pos < noteName.size())
-        {
+        while (pos < noteName.size()) {
             char c = noteName[pos];
-            if (c == '#')
-            {
+            if (c == '#') {
                 accidental++;
                 pos++;
-            }
-            else if (c == 'b' || c == 'B')
-            {
+            } else if (c == 'b' || c == 'B') {
                 // Distinguish 'b' as flat vs 'B' as note letter:
                 // 'b'/'B' here is always an accidental since we already parsed the note letter
                 accidental--;
                 pos++;
-            }
-            else
-            {
+            } else {
                 break;
             }
         }
@@ -93,24 +84,19 @@ class NoteToFreq
         // Check remaining is a valid integer
         bool hasDigit = false;
         bool negative = false;
-        if (noteName[pos] == '-')
-        {
+        if (noteName[pos] == '-') {
             negative = true;
             pos++;
         }
 
         int octave = 0;
-        while (pos < noteName.size())
-        {
+        while (pos < noteName.size()) {
             char c = noteName[pos];
-            if (c >= '0' && c <= '9')
-            {
+            if (c >= '0' && c <= '9') {
                 octave = octave * 10 + (c - '0');
                 hasDigit = true;
                 pos++;
-            }
-            else
-            {
+            } else {
                 return std::nullopt; // unexpected character
             }
         }
@@ -142,8 +128,7 @@ class NoteToFreq
      * @param midiNote  MIDI note number (0–127, A4=69)
      * @return frequency in Hz
      */
-    static double midiToFrequency(int midiNote)
-    {
+    static double midiToFrequency(int midiNote) {
         // f = 440 * 2^((midi - 69) / 12)
         return 440.0 * std::pow(2.0, (midiNote - 69) / 12.0);
     }
@@ -153,8 +138,7 @@ class NoteToFreq
      * @param freqHz  frequency in Hz
      * @return note name like "A4", "C#3", etc. Returns empty string for out-of-range.
      */
-    static std::string frequencyToNoteName(double freqHz)
-    {
+    static std::string frequencyToNoteName(double freqHz) {
         if (freqHz <= 0.0)
             return {};
 
@@ -173,8 +157,7 @@ class NoteToFreq
      * @param midiNote  MIDI note number (0–127)
      * @return note name like "C4", "F#2"
      */
-    static std::string midiToNoteName(int midiNote)
-    {
+    static std::string midiToNoteName(int midiNote) {
         if (midiNote < 0 || midiNote > 127)
             return {};
 
@@ -193,8 +176,7 @@ class NoteToFreq
      * @param text  input string
      * @return true if it could be a note name
      */
-    static bool looksLikeNoteName(const std::string& text)
-    {
+    static bool looksLikeNoteName(const std::string& text) {
         if (text.empty())
             return false;
         char first = static_cast<char>(std::toupper(static_cast<unsigned char>(text[0])));

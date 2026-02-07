@@ -11,8 +11,7 @@ class PhuSplitterAudioProcessor;
 /**
  * Represents a single preset containing a name and crossover frequencies.
  */
-struct Preset
-{
+struct Preset {
     juce::String name;
     std::array<float, 6> frequencies;
 };
@@ -26,8 +25,7 @@ struct Preset
  *
  * Thread safety: All methods must be called from the message thread only.
  */
-class PresetManager
-{
+class PresetManager {
   public:
     /** Construct a PresetManager linked to the given processor. */
     explicit PresetManager(PhuSplitterAudioProcessor& processor);
@@ -38,8 +36,7 @@ class PresetManager
     juce::StringArray getPresetNames() const;
 
     /** Get the currently active preset name. Empty string if none selected. */
-    juce::String getCurrentPresetName() const
-    {
+    juce::String getCurrentPresetName() const {
         return currentPresetName;
     }
 

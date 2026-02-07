@@ -13,18 +13,15 @@
  * Example 1: Simple listener for GLOBALS events
  * Mirrors: GLOBALS:addEventListener(function(inEvent) ... end)
  */
-class SimpleGlobalsListener : public GlobalsEventListener
-{
+class SimpleGlobalsListener : public GlobalsEventListener {
   public:
-    void onBPMChanged(const BPMEvent& event) override
-    {
+    void onBPMChanged(const BPMEvent& event) override {
         std::cout << "BPM changed from " << event.oldValues.bpm << " to " << event.newValues.bpm
                   << std::endl;
         std::cout << "  New samples per beat: " << event.newValues.samplesPerBeat << std::endl;
     }
 
-    void onIsPlayingChanged(const IsPlayingEvent& event) override
-    {
+    void onIsPlayingChanged(const IsPlayingEvent& event) override {
         std::cout << "Playing state changed: " << (event.newValue ? "PLAYING" : "STOPPED")
                   << std::endl;
     }
@@ -35,8 +32,7 @@ class SimpleGlobalsListener : public GlobalsEventListener
  * Mirrors the Lua pattern:
  *   GLOBALS:addEventListener(function(inEvent) BUFFERS:listenToGlobalsChange(inEvent) end)
  */
-class BuffersManager : public GlobalsEventListener, public BufferEventSource
-{
+class BuffersManager : public GlobalsEventListener, public BufferEventSource {
   private:
     int numBeats = 1;
     int globalSize = 0;
@@ -44,8 +40,7 @@ class BuffersManager : public GlobalsEventListener, public BufferEventSource
 
   public:
     // Listen to GLOBALS BPM changes and update internal state
-    void onBPMChanged(const BPMEvent& event) override
-    {
+    void onBPMChanged(const BPMEvent& event) override {
         // Update our internal timing
         samplesPerBeat = event.newValues.samplesPerBeat;
         globalSize = static_cast<int>(samplesPerBeat * numBeats);
@@ -64,13 +59,11 @@ class BuffersManager : public GlobalsEventListener, public BufferEventSource
         fireBuffersChanged(bufferEvent);
     }
 
-    void onSampleRateChanged(const SampleRateEvent& event) override
-    {
+    void onSampleRateChanged(const SampleRateEvent& event) override {
         std::cout << "BUFFERS: Sample rate changed to " << event.newRate << std::endl;
     }
 
-    void setNumBeats(int beats)
-    {
+    void setNumBeats(int beats) {
         numBeats = beats;
     }
 };
@@ -80,11 +73,9 @@ class BuffersManager : public GlobalsEventListener, public BufferEventSource
  * Mirrors the Lua pattern:
  *   BUFFERS:addEventListener(function(inEvent) CLIENT_PATHS:listenToBufferChanges(inEvent) end)
  */
-class ClientPathsManager : public BufferEventListener
-{
+class ClientPathsManager : public BufferEventListener {
   public:
-    void onBuffersChanged(const BuffersChangedEvent& event) override
-    {
+    void onBuffersChanged(const BuffersChangedEvent& event) override {
         std::cout << "CLIENT_PATHS: Buffers changed, globalSize = " << event.globalSize
                   << std::endl;
         // Would update client path buckets here
@@ -96,11 +87,9 @@ class ClientPathsManager : public BufferEventListener
  * Mirrors the Lua pattern:
  *   BUFFERS:addEventListener(function(inEvent) RMS:listenToBufferChanges(inEvent) end)
  */
-class RMSCalculator : public BufferEventListener
-{
+class RMSCalculator : public BufferEventListener {
   public:
-    void onBuffersChanged(const BuffersChangedEvent& event) override
-    {
+    void onBuffersChanged(const BuffersChangedEvent& event) override {
         std::cout << "RMS: Reconfiguring buckets for " << event.numBeats << " beats" << std::endl;
         // Would reconfigure RMS buckets here
     }
@@ -109,8 +98,7 @@ class RMSCalculator : public BufferEventListener
 /**
  * Main example demonstrating the event flow
  */
-int main()
-{
+int main() {
     std::cout << "=== C++ EventSource Example ===" << std::endl;
     std::cout << std::endl;
 
