@@ -4,6 +4,17 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to create release for (e.g., v1.0.0). Leave empty to use current branch/tag.'
+        required: false
+        type: string
+      draft:
+        description: 'Create as draft release'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   build-and-release:
@@ -11,9 +22,25 @@ jobs:
     permissions:
       contents: write
     steps:
+    - name: Determine ref to checkout
+      id: determine-ref
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.tag }}" ]; then
+          echo "ref=${{ inputs.tag }}" >> $GITHUB_OUTPUT
+          echo "Using manually specified tag: ${{ inputs.tag }}"
+        elif [ "${{ github.ref_type }}" == "tag" ]; then
+          echo "ref=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          echo "Using pushed tag: ${{ github.ref_name }}"
+        else
+          echo "ref=${{ github.ref }}" >> $GITHUB_OUTPUT
+          echo "Using current ref: ${{ github.ref }}"
+        fi
+    
     - name: Checkout
       uses: actions/checkout@v4
       with:
+        ref: ${{ steps.determine-ref.outputs.ref }}
         submodules: recursive
 
     - name: Configure CMake
@@ -25,12 +52,33 @@ jobs:
     - name: Package VST3
       run: |
         mkdir -p artifacts
-        cp -r build/src/phu-splitter_artefacts/Release/VST3/*.vst3 artifacts/
+        # Create a zip file of the VST3 plugin folder
+        cd build/src/phu-splitter_artefacts/Release/VST3
+        # Find the .vst3 directory and zip it
+        for vst3_dir in *.vst3; do
+          if [ -d "$vst3_dir" ]; then
+            echo "Found VST3 plugin: $vst3_dir"
+            7z a -tzip "$GITHUB_WORKSPACE/artifacts/${vst3_dir%.vst3}.zip" "$vst3_dir"
+            break
+          fi
+        done
+        # Verify artifact was created
+        if [ ! -f "$GITHUB_WORKSPACE/artifacts/"*.zip ]; then
+          echo "Error: No .vst3 plugin found or packaging failed"
+          exit 1
+        fi
+        cd "$GITHUB_WORKSPACE/artifacts"
+        ls -lh
       shell: bash
 
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
-        files: artifacts/*
+        tag_name: ${{ steps.determine-ref.outputs.ref }}
+        files: artifacts/*.zip
         generate_release_notes: true
-        prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
+        draft: ${{ inputs.draft || false }}
+        prerelease: ${{ contains(steps.determine-ref.outputs.ref, 'alpha') || contains(steps.determine-ref.outputs.ref, 'beta') || contains(steps.determine-ref.outputs.ref, 'rc') }}
+        fail_on_unmatched_files: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
