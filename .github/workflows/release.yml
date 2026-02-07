@@ -71,8 +71,9 @@ jobs:
         ls -lh
       shell: bash
 
+    # Pin to v2.4.2 to avoid retry loop bug in v2.5.0+ (see https://github.com/softprops/action-gh-release/issues/704)
     - name: Create Release
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@v2.4.2
       with:
         tag_name: ${{ steps.determine-ref.outputs.ref }}
         files: artifacts/*.zip
