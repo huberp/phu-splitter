@@ -46,6 +46,16 @@ Each release includes a ZIP file containing the complete VST3 plugin folder, rea
 
 The ZIP filename is based on the plugin name (e.g., `PHU SPLITTER.zip`).
 
+## Testing the Workflow
+
+To test the release workflow without creating a production release:
+
+1. Create a test tag: `git tag v0.0.1-test && git push origin v0.0.1-test`
+2. Or use workflow dispatch with a test tag and enable the "draft" option
+3. Verify the workflow completes successfully
+4. Check that the release artifacts are correct (VST3 plugin ZIP, not .lib/.exp files)
+5. Delete the test release and tag if satisfied
+
 ## Troubleshooting
 
 ### Release workflow failed
@@ -59,3 +69,8 @@ Re-run the workflow using workflow dispatch to upload correct artifacts.
 
 ### Cannot trigger workflow again
 Use the **workflow dispatch** feature described above - you don't need a new tag.
+
+### Workflow doesn't appear in Actions UI
+- Ensure the workflow file is on the default branch (main)
+- Check that the YAML syntax is valid
+- The workflow_dispatch trigger allows manual runs from any branch
