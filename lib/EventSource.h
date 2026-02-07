@@ -1,37 +1,37 @@
 #pragma once
 
-#include <vector>
-#include <algorithm>
 #include "Event.h"
+#include <algorithm>
+#include <vector>
 
 /**
  * Base EventSource template
- * 
+ *
  * Provides common listener management functionality for all event sources.
  * Eliminates code duplication between different EventSource types.
- * 
+ *
  * @tparam ListenerType The listener interface type (e.g., GlobalsEventListener)
  */
-template<typename ListenerType>
-class EventSource {
-protected:
+template <typename ListenerType> class EventSource {
+  protected:
     std::vector<ListenerType*> listeners;
-    
-public:
+
+  public:
     virtual ~EventSource() = default;
-    
+
     /**
      * Add a listener
      * @param listener Pointer to listener (must outlive this EventSource or be removed)
      * @return The listener pointer (for chaining or storing the handle)
      */
     ListenerType* addEventListener(ListenerType* listener) {
-        if (listener && std::find(listeners.begin(), listeners.end(), listener) == listeners.end()) {
+        if (listener &&
+            std::find(listeners.begin(), listeners.end(), listener) == listeners.end()) {
             listeners.push_back(listener);
         }
         return listener;
     }
-    
+
     /**
      * Remove a listener
      * @param listener Pointer to listener to remove
@@ -45,7 +45,7 @@ public:
         }
         return false;
     }
-    
+
     /**
      * Get number of registered listeners
      */

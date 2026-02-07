@@ -2,7 +2,6 @@
 
 #include "Event.h"
 
-
 /**
  * BPM Changed Event
  * Fired when DAW tempo changes
@@ -13,7 +12,7 @@ struct BPMEvent : public Event {
         double msecPerBeat = 0.0;
         double samplesPerBeat = 0.0;
     };
-    
+
     Values oldValues;
     Values newValues;
 };
@@ -38,17 +37,17 @@ struct SampleRateEvent : public Event {
 
 /**
  * Listener interface for GLOBALS events (BPM, IsPlaying, SampleRate)
- * 
+ *
  * Objects that need to respond to DAW global state changes should inherit
  * from this interface and implement the relevant callbacks.
- * 
+ *
  * Mirrors the Lua pattern:
  *   GLOBALS:addEventListener(function(inEvent) ... end)
  */
 class GlobalsEventListener {
-public:
+  public:
     virtual ~GlobalsEventListener() = default;
-    
+
     /**
      * Called when BPM changes
      * @param event Contains old and new BPM values plus derived timing info
@@ -57,7 +56,7 @@ public:
         // Default empty implementation - override if needed
         (void)event; // Suppress unused warning
     }
-    
+
     /**
      * Called when playback starts or stops
      * @param event Contains old and new playing state
@@ -66,7 +65,7 @@ public:
         // Default empty implementation - override if needed
         (void)event;
     }
-    
+
     /**
      * Called when sample rate changes
      * @param event Contains old and new sample rate

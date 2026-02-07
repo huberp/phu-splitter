@@ -5,9 +5,7 @@
 // Construction
 // ============================================================================
 
-PresetManager::PresetManager(PhuSplitterAudioProcessor& processor)
-    : processorRef(processor)
-{
+PresetManager::PresetManager(PhuSplitterAudioProcessor& processor) : processorRef(processor) {
     // Ensure presets directory exists
     getPresetsDirectory().createDirectory();
     scanPresets();
@@ -18,28 +16,23 @@ PresetManager::PresetManager(PhuSplitterAudioProcessor& processor)
 // Directory & file helpers
 // ============================================================================
 
-juce::File PresetManager::getPresetsDirectory() const
-{
-    auto appDataDir = juce::File::getSpecialLocation(
-        juce::File::userApplicationDataDirectory);
+juce::File PresetManager::getPresetsDirectory() const {
+    auto appDataDir = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory);
     return appDataDir.getChildFile("PhuSplitter").getChildFile("Presets");
 }
 
-juce::File PresetManager::getPresetFile(const juce::String& name) const
-{
+juce::File PresetManager::getPresetFile(const juce::String& name) const {
     juce::String safeName = juce::File::createLegalFileName(name);
     if (safeName.isEmpty())
         safeName = "Preset";
     return getPresetsDirectory().getChildFile(safeName + PRESET_FILE_EXTENSION);
 }
 
-void PresetManager::writePresetFile(const Preset& preset) const
-{
+void PresetManager::writePresetFile(const Preset& preset) const {
     auto xml = std::make_unique<juce::XmlElement>("Preset");
     xml->setAttribute("name", preset.name);
 
-    for (size_t i = 0; i < preset.frequencies.size(); ++i)
-    {
+    for (size_t i = 0; i < preset.frequencies.size(); ++i) {
         auto* freqEl = xml->createNewChildElement("Frequency");
         freqEl->setAttribute("index", static_cast<int>(i));
         freqEl->setAttribute("value", static_cast<double>(preset.frequencies[i]));
@@ -49,8 +42,7 @@ void PresetManager::writePresetFile(const Preset& preset) const
     xml->writeTo(file);
 }
 
-std::optional<Preset> PresetManager::readPresetFile(const juce::File& file) const
-{
+std::optional<Preset> PresetManager::readPresetFile(const juce::File& file) const {
     auto xml = juce::XmlDocument::parse(file);
     if (!xml || !xml->hasTagName("Preset"))
         return std::nullopt;
@@ -63,14 +55,12 @@ std::optional<Preset> PresetManager::readPresetFile(const juce::File& file) cons
     for (size_t i = 0; i < preset.frequencies.size(); ++i)
         preset.frequencies[i] = defaults[i];
 
-    for (auto* child : xml->getChildIterator())
-    {
-        if (child->hasTagName("Frequency"))
-        {
+    for (auto* child : xml->getChildIterator()) {
+        if (child->hasTagName("Frequency")) {
             int idx = child->getIntAttribute("index", -1);
             if (idx >= 0 && idx < static_cast<int>(preset.frequencies.size()))
-                preset.frequencies[static_cast<size_t>(idx)] =
-                    static_cast<float>(child->getDoubleAttribute("value", defaults[static_cast<size_t>(idx)]));
+                preset.frequencies[static_cast<size_t>(idx)] = static_cast<float>(
+                    child->getDoubleAttribute("value", defaults[static_cast<size_t>(idx)]));
         }
     }
 
@@ -81,8 +71,7 @@ std::optional<Preset> PresetManager::readPresetFile(const juce::File& file) cons
 // Scanning
 // ============================================================================
 
-void PresetManager::scanPresets()
-{
+void PresetManager::scanPresets() {
     presetNames.clear();
     presetNames.add(INIT_PRESET_NAME);
 
@@ -90,11 +79,11 @@ void PresetManager::scanPresets()
     if (!dir.isDirectory())
         return;
 
-    auto files = dir.findChildFiles(juce::File::findFiles, false, juce::String("*") + PRESET_FILE_EXTENSION);
+    auto files =
+        dir.findChildFiles(juce::File::findFiles, false, juce::String("*") + PRESET_FILE_EXTENSION);
     files.sort();
 
-    for (auto& file : files)
-    {
+    for (auto& file : files) {
         auto name = file.getFileNameWithoutExtension();
         if (name.compareIgnoreCase(INIT_PRESET_NAME) != 0)
             presetNames.add(name);
@@ -105,18 +94,15 @@ void PresetManager::scanPresets()
 // Queries
 // ============================================================================
 
-juce::StringArray PresetManager::getPresetNames() const
-{
+juce::StringArray PresetManager::getPresetNames() const {
     return presetNames;
 }
 
-int PresetManager::getCurrentPresetIndex() const
-{
+int PresetManager::getCurrentPresetIndex() const {
     return presetNames.indexOf(currentPresetName);
 }
 
-int PresetManager::getNumPresets() const
-{
+int PresetManager::getNumPresets() const {
     return presetNames.size();
 }
 
@@ -124,14 +110,12 @@ int PresetManager::getNumPresets() const
 // Apply / Read processor frequencies
 // ============================================================================
 
-void PresetManager::applyPreset(const Preset& preset)
-{
+void PresetManager::applyPreset(const Preset& preset) {
     for (size_t i = 0; i < preset.frequencies.size(); ++i)
         processorRef.setCrossoverFrequency(i, preset.frequencies[i]);
 }
 
-std::array<float, 6> PresetManager::readProcessorFrequencies() const
-{
+std::array<float, 6> PresetManager::readProcessorFrequencies() const {
     return processorRef.getCrossoverFrequencies();
 }
 
@@ -139,8 +123,7 @@ std::array<float, 6> PresetManager::readProcessorFrequencies() const
 // Actions
 // ============================================================================
 
-void PresetManager::loadInit()
-{
+void PresetManager::loadInit() {
     Preset init;
     init.name = INIT_PRESET_NAME;
     init.frequencies = PhuSplitterAudioProcessor::DEFAULT_CROSSOVER_FREQS;
@@ -151,10 +134,8 @@ void PresetManager::loadInit()
         onPresetsChanged();
 }
 
-void PresetManager::loadPreset(const juce::String& name)
-{
-    if (name.compareIgnoreCase(INIT_PRESET_NAME) == 0)
-    {
+void PresetManager::loadPreset(const juce::String& name) {
+    if (name.compareIgnoreCase(INIT_PRESET_NAME) == 0) {
         loadInit();
         return;
     }
@@ -164,8 +145,7 @@ void PresetManager::loadPreset(const juce::String& name)
         return;
 
     auto preset = readPresetFile(file);
-    if (preset)
-    {
+    if (preset) {
         applyPreset(*preset);
         currentPresetName = preset->name;
 
@@ -174,14 +154,12 @@ void PresetManager::loadPreset(const juce::String& name)
     }
 }
 
-void PresetManager::loadPresetByIndex(int index)
-{
+void PresetManager::loadPresetByIndex(int index) {
     if (index >= 0 && index < presetNames.size())
         loadPreset(presetNames[index]);
 }
 
-void PresetManager::savePreset(const juce::String& name)
-{
+void PresetManager::savePreset(const juce::String& name) {
     if (name.isEmpty() || name.compareIgnoreCase(INIT_PRESET_NAME) == 0)
         return;
 
@@ -197,8 +175,7 @@ void PresetManager::savePreset(const juce::String& name)
         onPresetsChanged();
 }
 
-void PresetManager::deletePreset(const juce::String& name)
-{
+void PresetManager::deletePreset(const juce::String& name) {
     if (name.compareIgnoreCase(INIT_PRESET_NAME) == 0)
         return;
 
@@ -215,8 +192,7 @@ void PresetManager::deletePreset(const juce::String& name)
         onPresetsChanged();
 }
 
-void PresetManager::renamePreset(const juce::String& oldName, const juce::String& newName)
-{
+void PresetManager::renamePreset(const juce::String& oldName, const juce::String& newName) {
     if (oldName.compareIgnoreCase(INIT_PRESET_NAME) == 0 || newName.isEmpty())
         return;
     if (newName.compareIgnoreCase(INIT_PRESET_NAME) == 0)
@@ -244,15 +220,13 @@ void PresetManager::renamePreset(const juce::String& oldName, const juce::String
         onPresetsChanged();
 }
 
-void PresetManager::loadNextPreset()
-{
+void PresetManager::loadNextPreset() {
     int idx = getCurrentPresetIndex();
     int next = (idx + 1) % getNumPresets();
     loadPresetByIndex(next);
 }
 
-void PresetManager::loadPreviousPreset()
-{
+void PresetManager::loadPreviousPreset() {
     int idx = getCurrentPresetIndex();
     int prev = (idx - 1 + getNumPresets()) % getNumPresets();
     loadPresetByIndex(prev);

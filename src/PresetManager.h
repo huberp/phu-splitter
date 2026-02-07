@@ -1,18 +1,17 @@
 #pragma once
 
-#include <juce_audio_processors/juce_audio_processors.h>
 #include <array>
-#include <vector>
 #include <functional>
+#include <juce_audio_processors/juce_audio_processors.h>
 #include <optional>
+#include <vector>
 
 class PhuSplitterAudioProcessor;
 
 /**
  * Represents a single preset containing a name and crossover frequencies.
  */
-struct Preset
-{
+struct Preset {
     juce::String name;
     std::array<float, 6> frequencies;
 };
@@ -26,9 +25,8 @@ struct Preset
  *
  * Thread safety: All methods must be called from the message thread only.
  */
-class PresetManager
-{
-public:
+class PresetManager {
+  public:
     /** Construct a PresetManager linked to the given processor. */
     explicit PresetManager(PhuSplitterAudioProcessor& processor);
 
@@ -38,7 +36,9 @@ public:
     juce::StringArray getPresetNames() const;
 
     /** Get the currently active preset name. Empty string if none selected. */
-    juce::String getCurrentPresetName() const { return currentPresetName; }
+    juce::String getCurrentPresetName() const {
+        return currentPresetName;
+    }
 
     /** Get the index of the current preset in the names list, or -1. */
     int getCurrentPresetIndex() const;
@@ -75,7 +75,7 @@ public:
     /** Callback for external listeners when preset list or selection changes. */
     std::function<void()> onPresetsChanged;
 
-private:
+  private:
     /** Get the directory where user presets are stored. Creates it if needed. */
     juce::File getPresetsDirectory() const;
 

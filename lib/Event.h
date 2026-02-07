@@ -8,10 +8,10 @@
  */
 struct Event {
     virtual ~Event() = default;
-    
+
     // Source that fired this event
     const void* source = nullptr;
-    
+
     // Context from DAW (position, samples, etc.)
     // This mirrors the CONTEXT field in Lua events
     struct Context {
@@ -21,7 +21,7 @@ struct Event {
         const juce::Optional<juce::AudioPlayHead::PositionInfo>* positionInfo = nullptr;
         int epoch = 0;
     } context;
-    
-protected:
+
+  protected:
     Event() = default;
 };
