@@ -69,8 +69,15 @@ class PhuSplitterAudioProcessor : public juce::AudioProcessor, public GlobalsEve
     std::array<float, NUM_CROSSOVER_FREQS> getCrossoverFrequencies() const;
     void setCrossoverFrequency(size_t index, float freqHz);
 
+    // Get/set band gains (thread-safe)
+    std::array<float, NUM_BANDS> getBandGains() const;
+    void setBandGain(size_t bandIndex, float gainDB);
+
     // Parameter IDs for crossover frequencies
     static juce::String getCrossoverParamID(size_t index);
+    
+    // Parameter IDs for band gains
+    static juce::String getBandGainParamID(size_t bandIndex);
 
   private:
     // Create parameter layout for APVTS
@@ -91,6 +98,12 @@ class PhuSplitterAudioProcessor : public juce::AudioProcessor, public GlobalsEve
 
     // Current frequencies used by audio thread (updated from params each block)
     std::array<float, NUM_CROSSOVER_FREQS> currentFreqs = DEFAULT_CROSSOVER_FREQS;
+    
+    // Cached atomic pointers to band gain parameters (for audio thread)
+    std::array<std::atomic<float>*, NUM_BANDS> bandGainParamPtrs{};
+    
+    // Current band gains used by audio thread (updated from params each block)
+    std::array<float, NUM_BANDS> currentGainsDB{};
 
     LinkwitzRiley::MultiBandN<float> m_multiBand;
 
