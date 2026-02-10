@@ -243,7 +243,8 @@ void CrossoverFrequencyBar::pullGainsFromParams() {
 // ============================================================================
 
 float CrossoverFrequencyBar::applySnapToGrid(float gainDB) const {
-    for (float snapValue : SNAP_VALUES) {
+    static constexpr float snapValues[] = {-12.0f, -6.0f, 0.0f, 6.0f, 12.0f};
+    for (float snapValue : snapValues) {
         if (std::abs(gainDB - snapValue) < SNAP_THRESHOLD_DB)
             return snapValue;
     }
@@ -322,7 +323,8 @@ void CrossoverFrequencyBar::paint(juce::Graphics& g) {
 
     // Draw reference grid lines first (behind everything)
     g.setColour(juce::Colours::white.withAlpha(0.15f));
-    for (float gridDB : SNAP_VALUES) {
+    static constexpr float gridValues[] = {-12.0f, -6.0f, 0.0f, 6.0f, 12.0f};
+    for (float gridDB : gridValues) {
         int gridY = static_cast<int>(std::round(gainToY(gridDB)));
         float dashPattern[] = {3.0f, 3.0f};
         g.drawDashedLine(juce::Line<float>(static_cast<float>(bar.getX()),

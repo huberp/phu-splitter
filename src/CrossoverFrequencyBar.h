@@ -31,7 +31,6 @@ class CrossoverFrequencyBar : public juce::Component, public juce::Timer {
     static constexpr float MIN_GAIN_DB = -24.0f;
     static constexpr float MAX_GAIN_DB = +24.0f;
     static constexpr float SNAP_THRESHOLD_DB = 0.5f;
-    static constexpr std::array<float, 5> SNAP_VALUES = {-12.0f, -6.0f, 0.0f, 6.0f, 12.0f};
 
     CrossoverFrequencyBar(PhuSplitterAudioProcessor& processor);
     ~CrossoverFrequencyBar() override;
