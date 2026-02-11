@@ -388,7 +388,11 @@ void CrossoverFrequencyBar::paint(juce::Graphics& g) {
         g.drawLine(x0, lineY, x1, lineY, thickness);
 
         // Draw gain value label
-        juce::String gainText = juce::String(bandGainsDB[band], 1) + "dB";
+        juce::String gainText;
+        if (bandGainsDB[band] > 0.0f)
+            gainText = "+" + juce::String(bandGainsDB[band], 1) + "dB";
+        else
+            gainText = juce::String(bandGainsDB[band], 1) + "dB";
         float fontSize = active ? 11.0f : 10.0f;
         juce::Font font = juce::Font(fontSize, active ? juce::Font::bold : juce::Font::plain);
         g.setFont(font);
@@ -483,13 +487,10 @@ void CrossoverFrequencyBar::mouseDrag(const juce::MouseEvent& e) {
     if (dragGainBandIndex >= 0) {
         float rawGain = yToGain(static_cast<float>(e.y));
         
-        // Apply fine adjustment if Shift is held
-        if (e.mods.isShiftDown()) {
-            // Fine adjustment: snap to 0.1 dB increments
-            rawGain = std::round(rawGain * 10.0f) / 10.0f;
-        }
+        // Always quantize to 0.1 dB to match parameter resolution
+        rawGain = std::round(rawGain * 10.0f) / 10.0f;
         
-        // Apply snap-to-grid
+        // Apply snap-to-grid (for common values like 0, ±6, ±12 dB)
         float snappedGain = applySnapToGrid(rawGain);
         
         // Clamp to valid range

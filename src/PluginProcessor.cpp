@@ -51,8 +51,10 @@ void PhuSplitterAudioProcessor::prepareToPlay(double sampleRate, int samplesPerB
         currentFreqs[i] = crossoverParamPtrs[i]->load();
     
     // Read current band gains from parameters
-    for (size_t i = 0; i < NUM_BANDS; ++i)
+    for (size_t i = 0; i < NUM_BANDS; ++i) {
         currentGainsDB[i] = bandGainParamPtrs[i]->load();
+        currentLinearGains[i] = std::pow(10.0f, currentGainsDB[i] / 20.0f);
+    }
 
     // Configure multiband crossover with actual sample rate
     m_multiBand.setParams(LinkwitzRiley::Slope::DB48, currentFreqs.data(), NUM_CROSSOVER_FREQS,
@@ -88,11 +90,13 @@ void PhuSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         }
     }
     
-    // Check if band gains changed from parameter automation
+    // Check if band gains changed from parameter automation and precompute linear gains
     for (size_t i = 0; i < NUM_BANDS; ++i) {
         float paramVal = bandGainParamPtrs[i]->load();
         if (paramVal != currentGainsDB[i]) {
             currentGainsDB[i] = paramVal;
+            // Precompute linear gain to avoid expensive pow() in sample loop
+            currentLinearGains[i] = std::pow(10.0f, currentGainsDB[i] / 20.0f);
         }
     }
 
@@ -138,19 +142,16 @@ void PhuSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         // Apply band gains and write each band to corresponding stereo output channel pair
         // Band 0 -> channels 0,1 (after input); Band 1 -> channels 2,3; etc.
         for (size_t band = 0; band < NUM_BANDS; ++band) {
-            // Convert dB to linear gain
-            float linearGain = std::pow(10.0f, currentGainsDB[band] / 20.0f);
-            
             const int leftChannel = static_cast<int>(band * 2);
             const int rightChannel = leftChannel + 1;
 
             if (leftChannel < totalOutputChannels) {
                 float* outL = buffer.getWritePointer(leftChannel);
-                outL[i] = bandsL[band] * linearGain;
+                outL[i] = bandsL[band] * currentLinearGains[band];
             }
             if (rightChannel < totalOutputChannels) {
                 float* outR = buffer.getWritePointer(rightChannel);
-                outR[i] = bandsR[band] * linearGain;
+                outR[i] = bandsR[band] * currentLinearGains[band];
             }
         }
     }

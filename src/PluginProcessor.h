@@ -104,6 +104,9 @@ class PhuSplitterAudioProcessor : public juce::AudioProcessor, public GlobalsEve
     
     // Current band gains used by audio thread (updated from params each block)
     std::array<float, NUM_BANDS> currentGainsDB{};
+    
+    // Precomputed linear gains (updated when gains change)
+    std::array<float, NUM_BANDS> currentLinearGains{};
 
     LinkwitzRiley::MultiBandN<float> m_multiBand;
 
