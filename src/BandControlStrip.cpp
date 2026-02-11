@@ -71,40 +71,25 @@ void BandControlStrip::updateButtonStates() {
     auto soloStates = processorRef.getBandSoloStates();
     auto muteStates = processorRef.getBandMuteStates();
 
-    // Check if any band is soloed
-    bool anySolo = false;
-    for (size_t i = 0; i < NUM_BANDS; ++i) {
-        if (soloStates[i]) {
-            anySolo = true;
-            break;
-        }
-    }
-
     for (size_t i = 0; i < NUM_BANDS; ++i) {
         // Update solo button
         bool isSoloed = soloStates[i];
         soloButtons[i]->setToggleState(isSoloed, juce::dontSendNotification);
 
-        // Style solo button
+        // Style solo button — active solo is orange/yellow, inactive is always dark grey
+        // Note: must set both buttonColourId (off) and buttonOnColourId (on/toggled)
         if (isSoloed) {
-            // Active solo: yellow background
+            // Active solo: orange/yellow background
             soloButtons[i]->setColour(juce::TextButton::buttonColourId,
-                                      juce::Colour(0xFFFFD700)); // Gold/yellow
+                                      juce::Colour(0xFFE8A000)); // Orange/yellow
+            soloButtons[i]->setColour(juce::TextButton::buttonOnColourId,
+                                      juce::Colour(0xFFE8A000)); // Orange/yellow
             soloButtons[i]->setColour(juce::TextButton::textColourOffId, juce::Colours::black);
             soloButtons[i]->setColour(juce::TextButton::textColourOnId, juce::Colours::black);
-        } else if (anySolo) {
-            // Other bands when solo is active: dimmed
-            soloButtons[i]->setColour(juce::TextButton::buttonColourId,
-                                      juce::Colour(0x80333333)); // 0x80 = 50% alpha
-            soloButtons[i]->setColour(
-                juce::TextButton::textColourOffId,
-                juce::Colour::fromRGBA(211, 211, 211, 127)); // lightgrey with 50% alpha
-            soloButtons[i]->setColour(
-                juce::TextButton::textColourOnId,
-                juce::Colour::fromRGBA(211, 211, 211, 127)); // lightgrey with 50% alpha
         } else {
-            // Inactive solo: dark grey
+            // Inactive solo: dark grey — same look regardless of whether other bands are soloed
             soloButtons[i]->setColour(juce::TextButton::buttonColourId, juce::Colour(0xFF333333));
+            soloButtons[i]->setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xFF333333));
             soloButtons[i]->setColour(juce::TextButton::textColourOffId, juce::Colours::lightgrey);
             soloButtons[i]->setColour(juce::TextButton::textColourOnId, juce::Colours::lightgrey);
         }
@@ -118,11 +103,14 @@ void BandControlStrip::updateButtonStates() {
             // Active mute: red background
             muteButtons[i]->setColour(juce::TextButton::buttonColourId,
                                       juce::Colour(0xFFCC0000)); // Red
+            muteButtons[i]->setColour(juce::TextButton::buttonOnColourId,
+                                      juce::Colour(0xFFCC0000)); // Red
             muteButtons[i]->setColour(juce::TextButton::textColourOffId, juce::Colours::white);
             muteButtons[i]->setColour(juce::TextButton::textColourOnId, juce::Colours::white);
         } else {
             // Inactive mute: dark grey
             muteButtons[i]->setColour(juce::TextButton::buttonColourId, juce::Colour(0xFF333333));
+            muteButtons[i]->setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xFF333333));
             muteButtons[i]->setColour(juce::TextButton::textColourOffId, juce::Colours::lightgrey);
             muteButtons[i]->setColour(juce::TextButton::textColourOnId, juce::Colours::lightgrey);
         }
