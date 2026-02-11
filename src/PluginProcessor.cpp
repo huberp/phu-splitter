@@ -31,6 +31,12 @@ PhuSplitterAudioProcessor::PhuSplitterAudioProcessor()
         bandGainParamPtrs[i] = apvts.getRawParameterValue(getBandGainParamID(i));
     }
 
+    // Cache raw parameter pointers for solo/mute
+    for (size_t i = 0; i < NUM_BANDS; ++i) {
+        bandSoloParamPtrs[i] = apvts.getRawParameterValue(getBandSoloParamID(i));
+        bandMuteParamPtrs[i] = apvts.getRawParameterValue(getBandMuteParamID(i));
+    }
+
     // Initialize multiband crossover with default frequencies
     m_multiBand.initialize(LinkwitzRiley::Slope::DB48, DEFAULT_CROSSOVER_FREQS.data(),
                            NUM_CROSSOVER_FREQS, 44100.0f);
@@ -135,23 +141,47 @@ void PhuSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     std::array<float, NUM_BANDS> bandsL;
     std::array<float, NUM_BANDS> bandsR;
 
+    // Check if any band is soloed
+    bool anySolo = false;
+    for (size_t i = 0; i < NUM_BANDS; ++i) {
+        if (bandSoloParamPtrs[i]->load() > 0.5f) {
+            anySolo = true;
+            break;
+        }
+    }
+
+    // Determine which bands should play based on solo/mute logic
+    std::array<bool, NUM_BANDS> shouldPlay;
+    for (size_t band = 0; band < NUM_BANDS; ++band) {
+        if (anySolo) {
+            // Solo mode: only soloed bands play
+            shouldPlay[band] = (bandSoloParamPtrs[band]->load() > 0.5f);
+        } else {
+            // Normal mode: muted bands don't play
+            shouldPlay[band] = !(bandMuteParamPtrs[band]->load() > 0.5f);
+        }
+    }
+
     for (int i = 0; i < numSamples; ++i) {
         // Process this sample through the multiband crossover
         m_multiBand.processSample(inputL[i], inputR[i], bandsL.data(), bandsR.data());
 
-        // Apply band gains and write each band to corresponding stereo output channel pair
+        // Apply band gains and solo/mute logic, then write each band to corresponding stereo output channel pair
         // Band 0 -> channels 0,1 (after input); Band 1 -> channels 2,3; etc.
         for (size_t band = 0; band < NUM_BANDS; ++band) {
             const int leftChannel = static_cast<int>(band * 2);
             const int rightChannel = leftChannel + 1;
 
+            // Compute final gain: apply solo/mute logic
+            float finalGain = shouldPlay[band] ? currentLinearGains[band] : 0.0f;
+
             if (leftChannel < totalOutputChannels) {
                 float* outL = buffer.getWritePointer(leftChannel);
-                outL[i] = bandsL[band] * currentLinearGains[band];
+                outL[i] = bandsL[band] * finalGain;
             }
             if (rightChannel < totalOutputChannels) {
                 float* outR = buffer.getWritePointer(rightChannel);
-                outR[i] = bandsR[band] * currentLinearGains[band];
+                outR[i] = bandsR[band] * finalGain;
             }
         }
     }
@@ -250,6 +280,14 @@ juce::String PhuSplitterAudioProcessor::getBandGainParamID(size_t bandIndex) {
     return "band" + juce::String(static_cast<int>(bandIndex)) + "_gain";
 }
 
+juce::String PhuSplitterAudioProcessor::getBandSoloParamID(size_t bandIndex) {
+    return "band_" + juce::String(static_cast<int>(bandIndex)) + "_solo";
+}
+
+juce::String PhuSplitterAudioProcessor::getBandMuteParamID(size_t bandIndex) {
+    return "band_" + juce::String(static_cast<int>(bandIndex)) + "_mute";
+}
+
 juce::AudioProcessorValueTreeState::ParameterLayout
 PhuSplitterAudioProcessor::createParameterLayout() {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
@@ -280,6 +318,24 @@ PhuSplitterAudioProcessor::createParameterLayout() {
         layout.add(std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{paramID, 1}, name,
             juce::NormalisableRange<float>(-24.0f, 24.0f, 0.1f), 0.0f));
+    }
+
+    // Add solo parameters (boolean)
+    for (size_t i = 0; i < NUM_BANDS; ++i) {
+        auto paramID = getBandSoloParamID(i);
+        auto name = gainBandNames[static_cast<int>(i)] + " Solo";
+
+        layout.add(std::make_unique<juce::AudioParameterBool>(
+            juce::ParameterID{paramID, 1}, name, false));
+    }
+
+    // Add mute parameters (boolean)
+    for (size_t i = 0; i < NUM_BANDS; ++i) {
+        auto paramID = getBandMuteParamID(i);
+        auto name = gainBandNames[static_cast<int>(i)] + " Mute";
+
+        layout.add(std::make_unique<juce::AudioParameterBool>(
+            juce::ParameterID{paramID, 1}, name, false));
     }
 
     return layout;
@@ -314,6 +370,38 @@ void PhuSplitterAudioProcessor::setBandGain(size_t bandIndex, float gainDB) {
         auto* param = apvts.getParameter(getBandGainParamID(bandIndex));
         if (param)
             param->setValueNotifyingHost(param->convertTo0to1(gainDB));
+    }
+}
+
+std::array<bool, PhuSplitterAudioProcessor::NUM_BANDS>
+PhuSplitterAudioProcessor::getBandSoloStates() const {
+    std::array<bool, NUM_BANDS> states;
+    for (size_t i = 0; i < NUM_BANDS; ++i)
+        states[i] = (bandSoloParamPtrs[i]->load() > 0.5f);
+    return states;
+}
+
+void PhuSplitterAudioProcessor::setBandSolo(size_t bandIndex, bool solo) {
+    if (bandIndex < NUM_BANDS) {
+        auto* param = apvts.getParameter(getBandSoloParamID(bandIndex));
+        if (param)
+            param->setValueNotifyingHost(solo ? 1.0f : 0.0f);
+    }
+}
+
+std::array<bool, PhuSplitterAudioProcessor::NUM_BANDS>
+PhuSplitterAudioProcessor::getBandMuteStates() const {
+    std::array<bool, NUM_BANDS> states;
+    for (size_t i = 0; i < NUM_BANDS; ++i)
+        states[i] = (bandMuteParamPtrs[i]->load() > 0.5f);
+    return states;
+}
+
+void PhuSplitterAudioProcessor::setBandMute(size_t bandIndex, bool mute) {
+    if (bandIndex < NUM_BANDS) {
+        auto* param = apvts.getParameter(getBandMuteParamID(bandIndex));
+        if (param)
+            param->setValueNotifyingHost(mute ? 1.0f : 0.0f);
     }
 }
 

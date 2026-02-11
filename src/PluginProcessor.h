@@ -79,6 +79,18 @@ class PhuSplitterAudioProcessor : public juce::AudioProcessor, public GlobalsEve
     // Parameter IDs for band gains
     static juce::String getBandGainParamID(size_t bandIndex);
 
+    // Get/set solo state (thread-safe)
+    std::array<bool, NUM_BANDS> getBandSoloStates() const;
+    void setBandSolo(size_t bandIndex, bool solo);
+
+    // Get/set mute state (thread-safe)
+    std::array<bool, NUM_BANDS> getBandMuteStates() const;
+    void setBandMute(size_t bandIndex, bool mute);
+
+    // Parameter IDs for solo/mute
+    static juce::String getBandSoloParamID(size_t bandIndex);
+    static juce::String getBandMuteParamID(size_t bandIndex);
+
   private:
     // Create parameter layout for APVTS
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
@@ -107,6 +119,10 @@ class PhuSplitterAudioProcessor : public juce::AudioProcessor, public GlobalsEve
 
     // Precomputed linear gains (updated when gains change)
     std::array<float, NUM_BANDS> currentLinearGains{};
+
+    // Cached atomic pointers to solo/mute parameters (for audio thread)
+    std::array<std::atomic<float>*, NUM_BANDS> bandSoloParamPtrs{};
+    std::array<std::atomic<float>*, NUM_BANDS> bandMuteParamPtrs{};
 
     LinkwitzRiley::MultiBandN<float> m_multiBand;
 
