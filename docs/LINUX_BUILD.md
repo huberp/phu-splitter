@@ -27,10 +27,9 @@ sudo apt-get install libfreetype6-dev libfontconfig1-dev
 # JUCE GUI dependencies
 sudo apt-get install libx11-dev libxcomposite-dev libxcursor-dev \
     libxext-dev libxinerama-dev libxrandr-dev libxrender-dev
-
-# Optional dependencies
-sudo apt-get install libcurl4-openssl-dev ladspa-sdk libwebkit2gtk-4.0-dev
 ```
+
+**Note:** This plugin disables optional JUCE features (webkit, curl, ladspa) via CMake flags, so only the minimal dependencies listed above are required.
 
 ### Other Distributions
 
