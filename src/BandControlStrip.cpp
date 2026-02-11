@@ -95,11 +95,13 @@ void BandControlStrip::updateButtonStates() {
         } else if (anySolo) {
             // Other bands when solo is active: dimmed
             soloButtons[i]->setColour(juce::TextButton::buttonColourId,
-                                      juce::Colour(0xFF333333).withAlpha(0.5f));
-            soloButtons[i]->setColour(juce::TextButton::textColourOffId,
-                                      juce::Colours::lightgrey.withAlpha(0.5f));
-            soloButtons[i]->setColour(juce::TextButton::textColourOnId,
-                                      juce::Colours::lightgrey.withAlpha(0.5f));
+                                      juce::Colour(0x80333333)); // 0x80 = 50% alpha
+            soloButtons[i]->setColour(
+                juce::TextButton::textColourOffId,
+                juce::Colour::fromRGBA(211, 211, 211, 127)); // lightgrey with 50% alpha
+            soloButtons[i]->setColour(
+                juce::TextButton::textColourOnId,
+                juce::Colour::fromRGBA(211, 211, 211, 127)); // lightgrey with 50% alpha
         } else {
             // Inactive solo: dark grey
             soloButtons[i]->setColour(juce::TextButton::buttonColourId, juce::Colour(0xFF333333));
