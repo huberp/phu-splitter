@@ -10,6 +10,7 @@ Each band is output as a separate stereo channel, enabling multiband processing 
 
 - **7-band Linkwitz-Riley crossover** with 48 dB/octave slopes
 - **Draggable crossover frequency bar** — click and drag dividers on a logarithmic frequency axis
+- **Draggable amplify/attenuator bar** — click and drag horizontal line in each band to amplify/attenuate it's output
 - **Editable frequency text boxes** — double-click to type a value in Hz, kHz, or **musical note names** (e.g. `C#3`, `E#1`, `Ab4`)
 - **Preset system** — save, load, rename, and delete presets; navigate with prev/next buttons
 - **Full DAW automation** — crossover frequencies are exposed as automatable parameters
