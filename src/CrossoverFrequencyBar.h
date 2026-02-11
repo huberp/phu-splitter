@@ -26,6 +26,11 @@ class CrossoverFrequencyBar : public juce::Component, public juce::Timer {
 
     // Minimum octave gap between neighbouring dividers (~1/3 octave)
     static constexpr float MIN_FREQ_RATIO = 1.26f;
+    
+    // Gain constants
+    static constexpr float MIN_GAIN_DB = -24.0f;
+    static constexpr float MAX_GAIN_DB = +24.0f;
+    static constexpr float SNAP_THRESHOLD_DB = 0.5f;
 
     CrossoverFrequencyBar(PhuSplitterAudioProcessor& processor);
     ~CrossoverFrequencyBar() override;
@@ -39,6 +44,7 @@ class CrossoverFrequencyBar : public juce::Component, public juce::Timer {
     void mouseUp(const juce::MouseEvent& e) override;
     void mouseMove(const juce::MouseEvent& e) override;
     void mouseExit(const juce::MouseEvent& e) override;
+    void mouseDoubleClick(const juce::MouseEvent& e) override;
 
     // Timer callback to poll parameter values (for automation)
     void timerCallback() override;
@@ -61,6 +67,10 @@ class CrossoverFrequencyBar : public juce::Component, public juce::Timer {
     // --- Coordinate conversion (log scale) ---
     float freqToX(float freq) const;
     float xToFreq(float x) const;
+    
+    // --- Gain coordinate conversion (linear scale) ---
+    float gainToY(float gainDB) const;
+    float yToGain(float y) const;
 
     // --- Frequency validation ---
     float clampFreqForIndex(size_t index, float freq) const;
@@ -73,6 +83,12 @@ class CrossoverFrequencyBar : public juce::Component, public juce::Timer {
     // --- Sync ---
     void pushFreqToParam(size_t index, float freq);
     void pullFreqsFromParams();
+    
+    void pushGainToParam(size_t bandIndex, float gainDB);
+    void pullGainsFromParams();
+    
+    // --- Snap-to-grid helper ---
+    float applySnapToGrid(float gainDB) const;
 
     // --- Layout helpers ---
     juce::Rectangle<int> getBarArea() const;
@@ -82,18 +98,26 @@ class CrossoverFrequencyBar : public juce::Component, public juce::Timer {
     }
     int dividerXForIndex(size_t index) const;
     int hitTestDivider(int x) const; // returns index or -1
+    int hitTestGainLine(int x, int y) const; // returns band index or -1
 
     PhuSplitterAudioProcessor& processorRef;
 
     // Current crossover frequencies (in Hz)
     std::array<float, NUM_FREQS> freqs;
+    
+    // Current band gains (in dB)
+    std::array<float, NUM_BANDS> bandGainsDB{}; // initialized to 0.0f
 
     // Text boxes for frequency readout / input
     std::array<std::unique_ptr<juce::Label>, NUM_FREQS> freqLabels;
 
-    // Interaction state
+    // Interaction state for dividers
     int dragIndex = -1;
     int hoverIndex = -1;
+    
+    // Interaction state for gain lines
+    int dragGainBandIndex = -1;
+    int hoverGainBandIndex = -1;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CrossoverFrequencyBar)
 };

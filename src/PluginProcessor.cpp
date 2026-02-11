@@ -25,6 +25,11 @@ PhuSplitterAudioProcessor::PhuSplitterAudioProcessor()
     for (size_t i = 0; i < NUM_CROSSOVER_FREQS; ++i) {
         crossoverParamPtrs[i] = apvts.getRawParameterValue(getCrossoverParamID(i));
     }
+    
+    // Cache raw parameter pointers for band gains
+    for (size_t i = 0; i < NUM_BANDS; ++i) {
+        bandGainParamPtrs[i] = apvts.getRawParameterValue(getBandGainParamID(i));
+    }
 
     // Initialize multiband crossover with default frequencies
     m_multiBand.initialize(LinkwitzRiley::Slope::DB48, DEFAULT_CROSSOVER_FREQS.data(),
@@ -44,6 +49,12 @@ void PhuSplitterAudioProcessor::prepareToPlay(double sampleRate, int samplesPerB
     // Read current crossover frequencies from parameters
     for (size_t i = 0; i < NUM_CROSSOVER_FREQS; ++i)
         currentFreqs[i] = crossoverParamPtrs[i]->load();
+    
+    // Read current band gains from parameters
+    for (size_t i = 0; i < NUM_BANDS; ++i) {
+        currentGainsDB[i] = bandGainParamPtrs[i]->load();
+        currentLinearGains[i] = std::pow(10.0f, currentGainsDB[i] / 20.0f);
+    }
 
     // Configure multiband crossover with actual sample rate
     m_multiBand.setParams(LinkwitzRiley::Slope::DB48, currentFreqs.data(), NUM_CROSSOVER_FREQS,
@@ -76,6 +87,16 @@ void PhuSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         if (changed) {
             m_multiBand.setParams(LinkwitzRiley::Slope::DB48, currentFreqs.data(),
                                   NUM_CROSSOVER_FREQS, static_cast<float>(getSampleRate()));
+        }
+    }
+    
+    // Check if band gains changed from parameter automation and precompute linear gains
+    for (size_t i = 0; i < NUM_BANDS; ++i) {
+        float paramVal = bandGainParamPtrs[i]->load();
+        if (paramVal != currentGainsDB[i]) {
+            currentGainsDB[i] = paramVal;
+            // Precompute linear gain to avoid expensive pow() in sample loop
+            currentLinearGains[i] = std::pow(10.0f, currentGainsDB[i] / 20.0f);
         }
     }
 
@@ -118,7 +139,7 @@ void PhuSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         // Process this sample through the multiband crossover
         m_multiBand.processSample(inputL[i], inputR[i], bandsL.data(), bandsR.data());
 
-        // Write each band to corresponding stereo output channel pair
+        // Apply band gains and write each band to corresponding stereo output channel pair
         // Band 0 -> channels 0,1 (after input); Band 1 -> channels 2,3; etc.
         for (size_t band = 0; band < NUM_BANDS; ++band) {
             const int leftChannel = static_cast<int>(band * 2);
@@ -126,11 +147,11 @@ void PhuSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
             if (leftChannel < totalOutputChannels) {
                 float* outL = buffer.getWritePointer(leftChannel);
-                outL[i] = bandsL[band];
+                outL[i] = bandsL[band] * currentLinearGains[band];
             }
             if (rightChannel < totalOutputChannels) {
                 float* outR = buffer.getWritePointer(rightChannel);
-                outR[i] = bandsR[band];
+                outR[i] = bandsR[band] * currentLinearGains[band];
             }
         }
     }
@@ -225,6 +246,10 @@ juce::String PhuSplitterAudioProcessor::getCrossoverParamID(size_t index) {
     return "crossover_freq_" + juce::String(static_cast<int>(index + 1));
 }
 
+juce::String PhuSplitterAudioProcessor::getBandGainParamID(size_t bandIndex) {
+    return "band" + juce::String(static_cast<int>(bandIndex)) + "_gain";
+}
+
 juce::AudioProcessorValueTreeState::ParameterLayout
 PhuSplitterAudioProcessor::createParameterLayout() {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
@@ -241,6 +266,20 @@ PhuSplitterAudioProcessor::createParameterLayout() {
             juce::ParameterID{paramID, 1}, name,
             juce::NormalisableRange<float>(20.0f, 20000.0f, 0.1f, 0.25f),
             DEFAULT_CROSSOVER_FREQS[i]));
+    }
+    
+    // Add band gain parameters
+    static const juce::StringArray gainBandNames = {"SUB",  "BASS",   "LO-MID", "MID",
+                                                     "HI-MID", "PRES", "BRILL"};
+    
+    for (size_t i = 0; i < NUM_BANDS; ++i) {
+        auto paramID = getBandGainParamID(i);
+        auto name = gainBandNames[static_cast<int>(i)] + " Gain";
+
+        // Linear range: -24.0 dB to +24.0 dB
+        layout.add(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{paramID, 1}, name,
+            juce::NormalisableRange<float>(-24.0f, 24.0f, 0.1f), 0.0f));
     }
 
     return layout;
@@ -259,6 +298,22 @@ void PhuSplitterAudioProcessor::setCrossoverFrequency(size_t index, float freqHz
         auto* param = apvts.getParameter(getCrossoverParamID(index));
         if (param)
             param->setValueNotifyingHost(param->convertTo0to1(freqHz));
+    }
+}
+
+std::array<float, PhuSplitterAudioProcessor::NUM_BANDS>
+PhuSplitterAudioProcessor::getBandGains() const {
+    std::array<float, NUM_BANDS> gains;
+    for (size_t i = 0; i < NUM_BANDS; ++i)
+        gains[i] = bandGainParamPtrs[i]->load();
+    return gains;
+}
+
+void PhuSplitterAudioProcessor::setBandGain(size_t bandIndex, float gainDB) {
+    if (bandIndex < NUM_BANDS) {
+        auto* param = apvts.getParameter(getBandGainParamID(bandIndex));
+        if (param)
+            param->setValueNotifyingHost(param->convertTo0to1(gainDB));
     }
 }
 
