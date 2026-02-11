@@ -4,12 +4,12 @@
 
 set -e
 
-echo "Installing JUCE build dependencies for Linux..."
+echo "Installing minimal JUCE build dependencies for Linux..."
 
 # Update package list
 apt-get update
 
-# Compiler
+# Compiler and build tools
 apt-get install -y \
     build-essential \
     cmake \
@@ -35,13 +35,10 @@ apt-get install -y \
     libxrandr-dev \
     libxrender-dev
 
-# Optional but recommended
-apt-get install -y \
-    libcurl4-openssl-dev \
-    ladspa-sdk \
-    libwebkit2gtk-4.0-dev
-
-echo "✓ All dependencies installed successfully!"
+echo "✓ All required dependencies installed successfully!"
+echo ""
+echo "Note: This installs only the minimal dependencies required for this plugin."
+echo "Optional dependencies (webkit, curl, ladspa) are disabled via CMake flags."
 echo ""
 echo "You can now build with:"
 echo "  cmake --preset linux-release"
