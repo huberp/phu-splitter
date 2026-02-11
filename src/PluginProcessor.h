@@ -75,7 +75,7 @@ class PhuSplitterAudioProcessor : public juce::AudioProcessor, public GlobalsEve
 
     // Parameter IDs for crossover frequencies
     static juce::String getCrossoverParamID(size_t index);
-    
+
     // Parameter IDs for band gains
     static juce::String getBandGainParamID(size_t bandIndex);
 
@@ -98,13 +98,13 @@ class PhuSplitterAudioProcessor : public juce::AudioProcessor, public GlobalsEve
 
     // Current frequencies used by audio thread (updated from params each block)
     std::array<float, NUM_CROSSOVER_FREQS> currentFreqs = DEFAULT_CROSSOVER_FREQS;
-    
+
     // Cached atomic pointers to band gain parameters (for audio thread)
     std::array<std::atomic<float>*, NUM_BANDS> bandGainParamPtrs{};
-    
+
     // Current band gains used by audio thread (updated from params each block)
     std::array<float, NUM_BANDS> currentGainsDB{};
-    
+
     // Precomputed linear gains (updated when gains change)
     std::array<float, NUM_BANDS> currentLinearGains{};
 
