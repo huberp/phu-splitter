@@ -1,6 +1,7 @@
 # Build directories
 build/
 cmake-build-*/
+_codeql_build_dir/
 
 # IDE directories
 .vs/
