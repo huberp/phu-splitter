@@ -1,5 +1,6 @@
 #pragma once
 
+#include "BandControlStrip.h"
 #include "CrossoverFrequencyBar.h"
 #include "PresetStrip.h"
 #include <juce_audio_processors/juce_audio_processors.h>
@@ -24,6 +25,9 @@ class PhuSplitterAudioProcessorEditor : public juce::AudioProcessorEditor {
 
     // Preset strip (Design 3: inline navigation)
     PresetStrip presetStrip;
+
+    // Band control strip (solo/mute buttons)
+    BandControlStrip bandControlStrip;
 
     // Crossover frequency bar
     CrossoverFrequencyBar crossoverBar;

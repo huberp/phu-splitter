@@ -3,9 +3,13 @@
 #include "PluginProcessor.h"
 
 PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudioProcessor& p)
-    : AudioProcessorEditor(&p), audioProcessor(p), presetStrip(p), crossoverBar(p) {
+    : AudioProcessorEditor(&p), audioProcessor(p), presetStrip(p), bandControlStrip(p),
+      crossoverBar(p) {
     // Add preset strip
     addAndMakeVisible(presetStrip);
+
+    // Add band control strip
+    addAndMakeVisible(bandControlStrip);
 
     // Set up crossover bar label
     crossoverLabel.setText("Crossover Frequencies", juce::dontSendNotification);
@@ -37,15 +41,15 @@ PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudi
     addAndMakeVisible(logTextEditor);
 
     // Set editor size (wider for crossover bar, taller to fit both sections)
-    // Debug build: increased from 500 to 550px height
-    setSize(750, 550);
+    // Debug build: increased from 500 to 550px height, width from 750 to 810px
+    setSize(810, 550);
 
     // Add initial welcome message
     addLogMessage("PhuSplitter Debug Log initialized");
 #else
     // Smaller editor size for release builds (no debug log)
-    // Release build: increased from 200 to 250px height
-    setSize(750, 250);
+    // Release build: increased from 200 to 250px height, width from 750 to 810px
+    setSize(810, 250);
 #endif
 }
 
@@ -72,7 +76,19 @@ void PhuSplitterAudioProcessorEditor::resized() {
     // Crossover section
     crossoverLabel.setBounds(area.removeFromTop(25));
     area.removeFromTop(3);
-    crossoverBar.setBounds(area.removeFromTop(220)); // Increased from 100 to 220
+
+    // Horizontal layout: BandControlStrip | CrossoverBar
+    auto crossoverArea = area.removeFromTop(220); // Increased from 100 to 220
+    
+    // Band control strip on the left
+    bandControlStrip.setBounds(crossoverArea.removeFromLeft(BandControlStrip::TOTAL_WIDTH));
+    
+    // Gap between strip and bar
+    crossoverArea.removeFromLeft(6);
+    
+    // Crossover bar on the right
+    crossoverBar.setBounds(crossoverArea);
+    
     area.removeFromTop(10);
 
 #ifndef NDEBUG // Debug builds only
