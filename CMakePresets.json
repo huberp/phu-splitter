@@ -20,11 +20,12 @@
       }
     },
     {
-      "name": "ninja-multi",
-      "displayName": "Ninja Multi-Config",
-      "generator": "Ninja Multi-Config",
-      "binaryDir": "${sourceDir}/build/ninja-multi",
+      "name": "linux-release",
+      "displayName": "Linux Release",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/linux-release",
       "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_CXX_STANDARD": "17",
         "CMAKE_CXX_STANDARD_REQUIRED": "ON"
       }
@@ -50,18 +51,9 @@
       ]
     },
     {
-      "name": "ninja-debug",
-      "displayName": "Ninja Debug",
-      "configurePreset": "ninja-multi",
-      "configuration": "Debug",
-      "targets": [
-        "phu-splitter_VST3"
-      ]
-    },
-    {
-      "name": "ninja-release",
-      "displayName": "Ninja Release",
-      "configurePreset": "ninja-multi",
+      "name": "linux-build",
+      "displayName": "Linux Build",
+      "configurePreset": "linux-release",
       "configuration": "Release",
       "targets": [
         "phu-splitter_VST3"
