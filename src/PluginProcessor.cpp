@@ -281,11 +281,11 @@ juce::String PhuSplitterAudioProcessor::getBandGainParamID(size_t bandIndex) {
 }
 
 juce::String PhuSplitterAudioProcessor::getBandSoloParamID(size_t bandIndex) {
-    return "band_" + juce::String(static_cast<int>(bandIndex)) + "_solo";
+    return "band" + juce::String(static_cast<int>(bandIndex)) + "_solo";
 }
 
 juce::String PhuSplitterAudioProcessor::getBandMuteParamID(size_t bandIndex) {
-    return "band_" + juce::String(static_cast<int>(bandIndex)) + "_mute";
+    return "band" + juce::String(static_cast<int>(bandIndex)) + "_mute";
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout

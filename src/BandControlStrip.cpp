@@ -7,14 +7,12 @@ BandControlStrip::BandControlStrip(PhuSplitterAudioProcessor& processor)
     for (size_t i = 0; i < NUM_BANDS; ++i) {
         // Create solo button
         soloButtons[i] = std::make_unique<juce::TextButton>("S");
-        soloButtons[i]->setButtonText("S");
         soloButtons[i]->setClickingTogglesState(true);
         soloButtons[i]->onClick = [this, i]() { onSoloButtonClicked(i); };
         addAndMakeVisible(*soloButtons[i]);
 
         // Create mute button
         muteButtons[i] = std::make_unique<juce::TextButton>("M");
-        muteButtons[i]->setButtonText("M");
         muteButtons[i]->setClickingTogglesState(true);
         muteButtons[i]->onClick = [this, i]() { onMuteButtonClicked(i); };
         addAndMakeVisible(*muteButtons[i]);
