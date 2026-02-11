@@ -21,8 +21,8 @@ BandControlStrip::BandControlStrip(PhuSplitterAudioProcessor& processor)
     // Update initial button states
     updateButtonStates();
 
-    // Start timer for parameter synchronization (60 Hz refresh rate)
-    startTimer(16);
+    // Start timer for parameter synchronization (15 Hz refresh rate, consistent with other components)
+    startTimer(67); // ~15 Hz (67ms)
 }
 
 BandControlStrip::~BandControlStrip() {
@@ -71,23 +71,62 @@ void BandControlStrip::updateButtonStates() {
     auto soloStates = processorRef.getBandSoloStates();
     auto muteStates = processorRef.getBandMuteStates();
 
+    // Check if any band is soloed
+    bool anySolo = false;
+    for (size_t i = 0; i < NUM_BANDS; ++i) {
+        if (soloStates[i]) {
+            anySolo = true;
+            break;
+        }
+    }
+
+    // Only update if state has changed
+    bool stateChanged = (anySolo != previousAnySolo);
+    for (size_t i = 0; i < NUM_BANDS && !stateChanged; ++i) {
+        if (soloStates[i] != previousSoloStates[i] || muteStates[i] != previousMuteStates[i]) {
+            stateChanged = true;
+            break;
+        }
+    }
+
+    if (!stateChanged) {
+        return; // No changes, skip update
+    }
+
+    // Update previous state
+    previousSoloStates = soloStates;
+    previousMuteStates = muteStates;
+    previousAnySolo = anySolo;
+
     for (size_t i = 0; i < NUM_BANDS; ++i) {
         // Update solo button
         bool isSoloed = soloStates[i];
         soloButtons[i]->setToggleState(isSoloed, juce::dontSendNotification);
 
-        // Style solo button — active solo is orange/yellow, inactive is always dark grey
+        // Style solo button
         // Note: must set both buttonColourId (off) and buttonOnColourId (on/toggled)
         if (isSoloed) {
-            // Active solo: orange/yellow background
+            // Active solo: yellow background (#FFD700)
             soloButtons[i]->setColour(juce::TextButton::buttonColourId,
-                                      juce::Colour(0xFFE8A000)); // Orange/yellow
+                                      juce::Colour(0xFFFFD700)); // Gold/yellow
             soloButtons[i]->setColour(juce::TextButton::buttonOnColourId,
-                                      juce::Colour(0xFFE8A000)); // Orange/yellow
+                                      juce::Colour(0xFFFFD700)); // Gold/yellow
             soloButtons[i]->setColour(juce::TextButton::textColourOffId, juce::Colours::black);
             soloButtons[i]->setColour(juce::TextButton::textColourOnId, juce::Colours::black);
+        } else if (anySolo) {
+            // Other bands when solo is active: dimmed appearance
+            soloButtons[i]->setColour(juce::TextButton::buttonColourId,
+                                      juce::Colour(0x80333333)); // Dark grey with 50% alpha
+            soloButtons[i]->setColour(juce::TextButton::buttonOnColourId,
+                                      juce::Colour(0x80333333)); // Dark grey with 50% alpha
+            soloButtons[i]->setColour(
+                juce::TextButton::textColourOffId,
+                juce::Colour::fromRGBA(211, 211, 211, 127)); // lightgrey with 50% alpha
+            soloButtons[i]->setColour(
+                juce::TextButton::textColourOnId,
+                juce::Colour::fromRGBA(211, 211, 211, 127)); // lightgrey with 50% alpha
         } else {
-            // Inactive solo: dark grey — same look regardless of whether other bands are soloed
+            // Inactive solo: dark grey
             soloButtons[i]->setColour(juce::TextButton::buttonColourId, juce::Colour(0xFF333333));
             soloButtons[i]->setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xFF333333));
             soloButtons[i]->setColour(juce::TextButton::textColourOffId, juce::Colours::lightgrey);

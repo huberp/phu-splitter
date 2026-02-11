@@ -60,5 +60,10 @@ class BandControlStrip : public juce::Component, public juce::Timer {
     std::array<std::unique_ptr<juce::TextButton>, NUM_BANDS> soloButtons;
     std::array<std::unique_ptr<juce::TextButton>, NUM_BANDS> muteButtons;
 
+    // Previous state to avoid unnecessary updates
+    std::array<bool, NUM_BANDS> previousSoloStates{};
+    std::array<bool, NUM_BANDS> previousMuteStates{};
+    bool previousAnySolo = false;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BandControlStrip)
 };

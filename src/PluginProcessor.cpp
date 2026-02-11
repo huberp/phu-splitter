@@ -151,15 +151,18 @@ void PhuSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     }
 
     // Determine which bands should play based on solo/mute logic
-    std::array<bool, NUM_BANDS> shouldPlay;
+    // Precompute final gains for each band (once per block, not per sample)
+    std::array<float, NUM_BANDS> finalGains;
     for (size_t band = 0; band < NUM_BANDS; ++band) {
+        bool shouldPlay;
         if (anySolo) {
             // Solo mode: only soloed bands play
-            shouldPlay[band] = (bandSoloParamPtrs[band]->load() > 0.5f);
+            shouldPlay = (bandSoloParamPtrs[band]->load() > 0.5f);
         } else {
             // Normal mode: muted bands don't play
-            shouldPlay[band] = !(bandMuteParamPtrs[band]->load() > 0.5f);
+            shouldPlay = !(bandMuteParamPtrs[band]->load() > 0.5f);
         }
+        finalGains[band] = shouldPlay ? currentLinearGains[band] : 0.0f;
     }
 
     for (int i = 0; i < numSamples; ++i) {
@@ -172,16 +175,13 @@ void PhuSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             const int leftChannel = static_cast<int>(band * 2);
             const int rightChannel = leftChannel + 1;
 
-            // Compute final gain: apply solo/mute logic
-            float finalGain = shouldPlay[band] ? currentLinearGains[band] : 0.0f;
-
             if (leftChannel < totalOutputChannels) {
                 float* outL = buffer.getWritePointer(leftChannel);
-                outL[i] = bandsL[band] * finalGain;
+                outL[i] = bandsL[band] * finalGains[band];
             }
             if (rightChannel < totalOutputChannels) {
                 float* outR = buffer.getWritePointer(rightChannel);
-                outR[i] = bandsR[band] * finalGain;
+                outR[i] = bandsR[band] * finalGains[band];
             }
         }
     }
