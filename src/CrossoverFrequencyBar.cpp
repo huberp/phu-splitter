@@ -12,7 +12,7 @@ CrossoverFrequencyBar::CrossoverFrequencyBar(PhuSplitterAudioProcessor& processo
     auto initFreqs = processorRef.getCrossoverFrequencies();
     for (size_t i = 0; i < NUM_FREQS; ++i)
         freqs[i] = initFreqs[i];
-    
+
     // Pull initial band gains from processor parameters
     auto initGains = processorRef.getBandGains();
     for (size_t i = 0; i < NUM_BANDS; ++i)
@@ -327,11 +327,10 @@ void CrossoverFrequencyBar::paint(juce::Graphics& g) {
     for (float gridDB : gridValues) {
         int gridY = static_cast<int>(std::round(gainToY(gridDB)));
         float dashPattern[] = {3.0f, 3.0f};
-        g.drawDashedLine(juce::Line<float>(static_cast<float>(bar.getX()),
-                                           static_cast<float>(gridY),
-                                           static_cast<float>(bar.getRight()),
-                                           static_cast<float>(gridY)),
-                         dashPattern, 2, 1.0f);
+        g.drawDashedLine(
+            juce::Line<float>(static_cast<float>(bar.getX()), static_cast<float>(gridY),
+                              static_cast<float>(bar.getRight()), static_cast<float>(gridY)),
+            dashPattern, 2, 1.0f);
     }
 
     // Draw coloured band regions with semi-transparent fill
@@ -345,14 +344,14 @@ void CrossoverFrequencyBar::paint(juce::Graphics& g) {
 
         // Base color with semi-transparency
         juce::Colour bandColour = juce::Colour(BAND_COLOURS[band]).withAlpha(0.6f);
-        
+
         // If dragging this band's gain line, highlight the entire region
         if (dragGainBandIndex == static_cast<int>(band)) {
             bandColour = bandColour.brighter(0.3f).withAlpha(0.7f);
         } else if (hoverGainBandIndex == static_cast<int>(band)) {
             bandColour = bandColour.brighter(0.15f);
         }
-        
+
         g.setColour(bandColour);
         g.fillRect(bandRect);
 
@@ -360,7 +359,7 @@ void CrossoverFrequencyBar::paint(juce::Graphics& g) {
         if (bandRect.getWidth() > 30.0f) {
             g.setColour(juce::Colours::white.withAlpha(0.85f));
             g.setFont(juce::Font(11.0f, juce::Font::bold));
-            
+
             // Position label at top of band
             auto labelRect = bandRect.withHeight(20.0f);
             g.drawText(BAND_NAMES[band], labelRect.toNearestInt(), juce::Justification::centred,
@@ -403,8 +402,8 @@ void CrossoverFrequencyBar::paint(juce::Graphics& g) {
         if (labelX < x0 + 5.0f)
             labelX = x0 + 5.0f;
 
-        g.drawText(gainText, static_cast<int>(labelX), static_cast<int>(lineY - 8),
-                   45, 16, juce::Justification::centredLeft, false);
+        g.drawText(gainText, static_cast<int>(labelX), static_cast<int>(lineY - 8), 45, 16,
+                   juce::Justification::centredLeft, false);
     }
 
     // Draw divider lines last (on top)
@@ -486,19 +485,19 @@ void CrossoverFrequencyBar::mouseDrag(const juce::MouseEvent& e) {
     // Handle gain line dragging
     if (dragGainBandIndex >= 0) {
         float rawGain = yToGain(static_cast<float>(e.y));
-        
+
         // Always quantize to 0.1 dB to match parameter resolution
         rawGain = std::round(rawGain * 10.0f) / 10.0f;
-        
+
         // Apply snap-to-grid (for common values like 0, ±6, ±12 dB)
         float snappedGain = applySnapToGrid(rawGain);
-        
+
         // Clamp to valid range
         snappedGain = juce::jlimit(MIN_GAIN_DB, MAX_GAIN_DB, snappedGain);
-        
+
         bandGainsDB[static_cast<size_t>(dragGainBandIndex)] = snappedGain;
         pushGainToParam(static_cast<size_t>(dragGainBandIndex), snappedGain);
-        
+
         repaint();
         return;
     }

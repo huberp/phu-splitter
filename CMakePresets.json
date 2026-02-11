@@ -18,6 +18,17 @@
         "CMAKE_CXX_STANDARD": "17",
         "CMAKE_CXX_STANDARD_REQUIRED": "ON"
       }
+    },
+    {
+      "name": "linux-release",
+      "displayName": "Linux Release",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/linux-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CXX_STANDARD": "17",
+        "CMAKE_CXX_STANDARD_REQUIRED": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -34,6 +45,15 @@
       "name": "release",
       "displayName": "Build Release",
       "configurePreset": "vs2026-x64",
+      "configuration": "Release",
+      "targets": [
+        "phu-splitter_VST3"
+      ]
+    },
+    {
+      "name": "linux-build",
+      "displayName": "Linux Build",
+      "configurePreset": "linux-release",
       "configuration": "Release",
       "targets": [
         "phu-splitter_VST3"

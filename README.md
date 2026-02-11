@@ -19,9 +19,22 @@ Each band is output as a separate stereo channel, enabling multiband processing 
 
 This repo is set up for CMake presets.
 
+### Windows
+
 - Configure: `cmake --preset vs2026-x64`
 - Build Debug: `cmake --build --preset debug`
 - Build Release: `cmake --build --preset release`
+
+### Linux
+
+See [docs/LINUX_BUILD.md](docs/LINUX_BUILD.md) for detailed instructions.
+
+Quick start:
+```bash
+sudo bash scripts/install-linux-deps.sh  # Install dependencies
+cmake --preset linux-release              # Configure
+cmake --build --preset linux-build        # Build
+```
 
 The target built by the presets is `phu-splitter_VST3`.
 
