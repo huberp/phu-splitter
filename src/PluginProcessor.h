@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../lib/AudioSampleFifo.h"
 #include "../lib/SyncGlobals.h"
 #include "LinkwitzRileyFilter.h"
 #include <array>
@@ -91,6 +92,10 @@ class PhuSplitterAudioProcessor : public juce::AudioProcessor, public GlobalsEve
     static juce::String getBandSoloParamID(size_t bandIndex);
     static juce::String getBandMuteParamID(size_t bandIndex);
 
+    // Lock-free FIFOs for UI spectrum display
+    AudioSampleFifo<2>& getInputFifo() { return m_inputFifo; }
+    AudioSampleFifo<2>& getOutputSumFifo() { return m_outputSumFifo; }
+
   private:
     // Create parameter layout for APVTS
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
@@ -125,6 +130,16 @@ class PhuSplitterAudioProcessor : public juce::AudioProcessor, public GlobalsEve
     std::array<std::atomic<float>*, NUM_BANDS> bandMuteParamPtrs{};
 
     LinkwitzRiley::MultiBandN<float> m_multiBand;
+
+    // Lock-free FIFOs for transferring audio samples to UI thread (spectrum display)
+    AudioSampleFifo<2> m_inputFifo;
+    AudioSampleFifo<2> m_outputSumFifo;
+
+    // Temp buffer for accumulating output sum per processBlock
+    // Max expected host buffer size; if larger, we process in chunks
+    static constexpr int kMaxBlockSize = 8192;
+    std::array<float, kMaxBlockSize> m_sumL{};
+    std::array<float, kMaxBlockSize> m_sumR{};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PhuSplitterAudioProcessor)
 };
