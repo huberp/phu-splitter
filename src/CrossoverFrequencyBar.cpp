@@ -6,8 +6,9 @@
 // Construction / Destruction
 // ============================================================================
 
-CrossoverFrequencyBar::CrossoverFrequencyBar(PhuSplitterAudioProcessor& processor)
-    : processorRef(processor) {
+CrossoverFrequencyBar::CrossoverFrequencyBar(PhuSplitterAudioProcessor& processor,
+                                             FFTProcessor* inputFFT, FFTProcessor* outputSumFFT)
+    : processorRef(processor), inputFFTProcessor(inputFFT), outputSumFFTProcessor(outputSumFFT) {
     // Pull initial frequencies from processor parameters
     auto initFreqs = processorRef.getCrossoverFrequencies();
     for (size_t i = 0; i < NUM_FREQS; ++i)
@@ -321,7 +322,17 @@ int CrossoverFrequencyBar::hitTestGainLine(int x, int y) const {
 void CrossoverFrequencyBar::paint(juce::Graphics& g) {
     auto bar = getBarArea();
 
-    // Draw reference grid lines first (behind everything)
+    // Draw spectrum first (behind everything)
+    // Output FFT: thicker white line (more prominent)
+    if (outputFFTEnabled && outputSumFFTProcessor != nullptr) {
+        drawSpectrum(g, bar, outputSumFFTProcessor, 2.0f, juce::Colour(0xA0FFFFFF));
+    }
+    // Input FFT: thinner, slightly dimmer line (for reference)
+    if (inputFFTEnabled && inputFFTProcessor != nullptr) {
+        drawSpectrum(g, bar, inputFFTProcessor, 1.0f, juce::Colour(0x80FFFFFF));
+    }
+
+    // Draw reference grid lines (behind everything)
     g.setColour(juce::Colours::white.withAlpha(0.15f));
     static constexpr float gridValues[] = {-12.0f, -6.0f, 0.0f, 6.0f, 12.0f};
     for (float gridDB : gridValues) {
@@ -565,5 +576,85 @@ void CrossoverFrequencyBar::mouseDoubleClick(const juce::MouseEvent& e) {
         bandGainsDB[static_cast<size_t>(gainHit)] = 0.0f;
         pushGainToParam(static_cast<size_t>(gainHit), 0.0f);
         repaint();
+    }
+}
+
+void CrossoverFrequencyBar::drawSpectrum(juce::Graphics& g, const juce::Rectangle<int>& bounds,
+                                         FFTProcessor* fftProcessor, float lineWidth, juce::Colour colour) {
+    if (fftProcessor == nullptr)
+        return;
+
+    const float* magnitudes = fftProcessor->getMagnitudeSpectrum();
+    const int numBins = fftProcessor->getNumBins();
+    const float sampleRate = static_cast<float>(processorRef.getSampleRate());
+
+    if (numBins <= 0 || sampleRate <= 0.0f)
+        return;
+
+    // Draw spectrum with logarithmic frequency scale
+    // Horizontal bar: frequency maps to X axis, magnitude maps to Y axis
+    const float minFreq = 20.0f;
+    const float maxFreq = sampleRate * 0.5f; // Nyquist
+    const float logMin = std::log10(minFreq);
+    const float logMax = std::log10(maxFreq);
+
+    const int width = bounds.getWidth();
+    const int height = bounds.getHeight();
+
+    // Build spectrum path with cubic interpolation for smooth curves
+    juce::Path spectrumPath;
+    bool firstPoint = true;
+
+    // Sample points across the width
+    for (int x = 0; x < width; ++x) {
+        // Map X position to frequency (logarithmic)
+        const float proportion = static_cast<float>(x) / static_cast<float>(width);
+        const float logFreq = logMin + proportion * (logMax - logMin);
+        const float freq = std::pow(10.0f, logFreq);
+
+        // Calculate exact fractional bin position (for interpolation)
+        const float exactBin = freq * static_cast<float>(fftProcessor->getFFTSize()) / sampleRate;
+        const int bin0 = static_cast<int>(std::floor(exactBin));
+        const int bin1 = bin0 + 1;
+        const float binFraction = exactBin - static_cast<float>(bin0);
+
+        // Interpolate magnitude between adjacent bins
+        float magnitude = 0.0f;
+        if (bin0 >= 0 && bin1 < numBins) {
+            const float mag0 = magnitudes[bin0];
+            const float mag1 = magnitudes[bin1];
+            magnitude = mag0 + binFraction * (mag1 - mag0);
+        } else if (bin0 >= 0 && bin0 < numBins) {
+            magnitude = magnitudes[bin0];
+        } else {
+            continue;
+        }
+
+        // Convert to dB (with floor to avoid log(0))
+        magnitude = juce::jmax(magnitude, 1e-9f);
+        const float dB = 20.0f * std::log10(magnitude);
+
+        // Map dB to vertical position
+        // Range [-80, 0] dB gives 80 dB of dynamic range, enough for broadband audio
+        // where per-bin magnitudes are naturally much lower than a pure sine wave
+        const float dbMin = -80.0f;
+        const float dbMax = 0.0f;
+        const float normalizedDB = juce::jlimit(0.0f, 1.0f, (dB - dbMin) / (dbMax - dbMin));
+        const float yPos = bounds.getY() + (1.0f - normalizedDB) * static_cast<float>(height);
+        const float xPos = static_cast<float>(bounds.getX() + x);
+
+        if (firstPoint) {
+            spectrumPath.startNewSubPath(xPos, yPos);
+            firstPoint = false;
+        } else {
+            spectrumPath.lineTo(xPos, yPos);
+        }
+    }
+
+    // Smooth the path using rounded corners for natural spectrum appearance
+    if (!firstPoint) {
+        juce::Path smoothPath = spectrumPath.createPathWithRoundedCorners(1.5f);
+        g.setColour(colour);
+        g.strokePath(smoothPath, juce::PathStrokeType(lineWidth));
     }
 }

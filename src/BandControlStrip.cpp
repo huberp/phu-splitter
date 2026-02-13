@@ -159,3 +159,5 @@ void BandControlStrip::updateButtonStates() {
 void BandControlStrip::timerCallback() {
     updateButtonStates();
 }
+
+

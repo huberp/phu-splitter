@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../lib/FFTProcessor.h"
 #include <array>
 #include <juce_audio_processors/juce_audio_processors.h>
 
@@ -32,7 +33,12 @@ class CrossoverFrequencyBar : public juce::Component, public juce::Timer {
     static constexpr float MAX_GAIN_DB = +24.0f;
     static constexpr float SNAP_THRESHOLD_DB = 0.5f;
 
-    CrossoverFrequencyBar(PhuSplitterAudioProcessor& processor);
+    CrossoverFrequencyBar(PhuSplitterAudioProcessor& processor, FFTProcessor* inputFFT = nullptr,
+                          FFTProcessor* outputSumFFT = nullptr);
+
+    // Control which FFT spectrums are rendered
+    void setInputFFTEnabled(bool enabled) { inputFFTEnabled = enabled; }
+    void setOutputFFTEnabled(bool enabled) { outputFFTEnabled = enabled; }
     ~CrossoverFrequencyBar() override;
 
     void paint(juce::Graphics& g) override;
@@ -100,6 +106,10 @@ class CrossoverFrequencyBar : public juce::Component, public juce::Timer {
     int hitTestDivider(int x) const;         // returns index or -1
     int hitTestGainLine(int x, int y) const; // returns band index or -1
 
+    // --- Spectrum display ---
+    void drawSpectrum(juce::Graphics& g, const juce::Rectangle<int>& bounds,
+                      FFTProcessor* fftProcessor, float lineWidth, juce::Colour colour);
+
     PhuSplitterAudioProcessor& processorRef;
 
     // Current crossover frequencies (in Hz)
@@ -118,6 +128,14 @@ class CrossoverFrequencyBar : public juce::Component, public juce::Timer {
     // Interaction state for gain lines
     int dragGainBandIndex = -1;
     int hoverGainBandIndex = -1;
+
+    // FFT processor references for spectrum display (optional)
+    FFTProcessor* inputFFTProcessor = nullptr;
+    FFTProcessor* outputSumFFTProcessor = nullptr;
+
+    // FFT rendering enabled flags
+    bool inputFFTEnabled = false;
+    bool outputFFTEnabled = true; // default: output enabled
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CrossoverFrequencyBar)
 };
