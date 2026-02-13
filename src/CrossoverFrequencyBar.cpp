@@ -629,8 +629,10 @@ void CrossoverFrequencyBar::drawSpectrum(juce::Graphics& g, const juce::Rectangl
         magnitude = juce::jmax(magnitude, 1e-9f);
         const float dB = 20.0f * std::log10(magnitude);
 
-        // Map dB [-48, 0] to vertical position (standard analyzer range)
-        const float dbMin = -48.0f;
+        // Map dB to vertical position
+        // Range [-80, 0] dB gives 80 dB of dynamic range, enough for broadband audio
+        // where per-bin magnitudes are naturally much lower than a pure sine wave
+        const float dbMin = -80.0f;
         const float dbMax = 0.0f;
         const float normalizedDB = juce::jlimit(0.0f, 1.0f, (dB - dbMin) / (dbMax - dbMin));
         const float yPos = bounds.getY() + (1.0f - normalizedDB) * static_cast<float>(height);
