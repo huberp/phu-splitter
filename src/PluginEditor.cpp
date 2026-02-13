@@ -54,6 +54,9 @@ PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudi
 }
 
 PhuSplitterAudioProcessorEditor::~PhuSplitterAudioProcessorEditor() {
+    // Stop FFT timer
+    stopTimer();
+
 #ifndef NDEBUG // Debug builds only
     // Unregister from logger
     if (auto* logger = audioProcessor.getEditorLogger()) {
@@ -97,6 +100,16 @@ void PhuSplitterAudioProcessorEditor::resized() {
     area.removeFromTop(5);
     logTextEditor.setBounds(area);
 #endif
+}
+
+void PhuSplitterAudioProcessorEditor::timerCallback() {
+    // Process FFT on UI thread at ~30 Hz
+    // Read from audio FIFOs and compute magnitude spectra
+    inputFFT.process(audioProcessor.getInputFifo());
+    outputSumFFT.process(audioProcessor.getOutputSumFifo());
+
+    // Future: trigger repaint of spectrum visualization component
+    // For now, FFT data is computed and available via getters
 }
 
 #ifndef NDEBUG // Debug builds only

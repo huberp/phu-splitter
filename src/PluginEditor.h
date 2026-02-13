@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../lib/FFTProcessor.h"
 #include "BandControlStrip.h"
 #include "CrossoverFrequencyBar.h"
 #include "PresetStrip.h"
@@ -7,13 +8,15 @@
 
 class PhuSplitterAudioProcessor;
 
-class PhuSplitterAudioProcessorEditor : public juce::AudioProcessorEditor {
+class PhuSplitterAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                        public juce::Timer {
   public:
     PhuSplitterAudioProcessorEditor(PhuSplitterAudioProcessor&);
     ~PhuSplitterAudioProcessorEditor() override;
 
     void paint(juce::Graphics&) override;
     void resized() override;
+    void timerCallback() override;
 
 #ifndef NDEBUG // Debug builds only
     // Add log message to debug window
@@ -38,6 +41,11 @@ class PhuSplitterAudioProcessorEditor : public juce::AudioProcessorEditor {
     juce::TextEditor logTextEditor;
     juce::Label logLabel;
 #endif
+
+    // FFT processors for spectrum analysis (UI thread only)
+    // Order 14 = 16384 samples = ~341ms at 48kHz
+    FFTProcessor inputFFT{14};
+    FFTProcessor outputSumFFT{14};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PhuSplitterAudioProcessorEditor)
 };
