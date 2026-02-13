@@ -9,8 +9,15 @@
  * Reads samples from an AudioSampleFifo<2> (stereo), applies windowing,
  * computes FFT, and produces a smoothed magnitude spectrum for visualization.
  *
+ * Uses a sliding window approach: a local mono ring buffer holds the last
+ * fftSize samples. Each process() call drains only the NEW samples from the
+ * FIFO and shifts them in, then recomputes the FFT. This decouples the
+ * display update rate from the FFT size — the spectrum updates at the full
+ * timer rate (e.g. 60 Hz) regardless of whether the FFT is 1024 or 32768.
+ *
  * Features:
  * - Configurable FFT size (via setFFTOrder)
+ * - Sliding window: update rate independent of FFT size
  * - Temporal smoothing (attack/decay) to prevent jumpy visualization
  * - Frequency smoothing (averaging adjacent bins) for smoother curves
  * - SIMD-aligned buffers for optimal performance
@@ -48,6 +55,12 @@ class FFTProcessor {
         magnitudeSpectrum.setSize(1, fftSize / 2, false, true, true);
         smoothedMagnitudeSpectrum.setSize(1, fftSize / 2, false, true, true);
 
+        // Sliding window mono ring buffer (stores mixed-to-mono samples)
+        monoRingBuffer.setSize(1, fftSize, false, true, true);
+        monoRingBuffer.clear();
+        monoWritePos = 0;
+        monoBufferFilled = false;
+
         // Pre-compute Hann window
         // w(n) = 0.5 * (1 - cos(2*pi*n / (N-1)))
         auto* windowData = window.getWritePointer(0);
@@ -84,38 +97,59 @@ class FFTProcessor {
 
     /**
      * Process samples from the FIFO and compute smoothed FFT magnitude spectrum.
-     * Reads the most recent fftSize samples, applies windowing, computes FFT,
-     * applies temporal and frequency smoothing, and stores result.
+     *
+     * Sliding window approach: drains only the NEW samples from the FIFO,
+     * shifts them into a local mono ring buffer, then recomputes the FFT
+     * over the full window. This means the update rate equals the timer rate
+     * (e.g. 60 Hz) regardless of FFT size.
+     *
      * Call this from the UI thread (e.g., in a Timer).
      *
      * @param fifo  The audio sample FIFO to read from (stereo).
-     * @return      True if processing succeeded (enough samples available), false otherwise.
+     * @return      True if processing succeeded (ring buffer fully populated), false otherwise.
      */
     bool process(AudioSampleFifo<2>& fifo) {
-        // Check if enough samples are available for a full FFT window
-        if (fifo.getNumAvailable() < fftSize)
-            return false;
+        const int available = fifo.getNumAvailable();
+        if (available <= 0)
+            return monoBufferFilled; // No new data; reuse last spectrum if we have one
 
-        // Allocate temp buffers for reading stereo samples from FIFO
-        // AudioBuffer is SIMD-aligned by default for optimal memcpy/processing
-        juce::AudioBuffer<float> tempBuffer(2, fftSize);
+        // Read ALL available new samples from the FIFO (consume them)
+        // Use a reasonably-sized temp buffer to avoid huge allocations
+        const int toRead = juce::jmin(available, fftSize); // cap to fftSize (enough for full window)
+        juce::AudioBuffer<float> tempBuffer(2, toRead);
         float* channelPointers[2] = {tempBuffer.getWritePointer(0), tempBuffer.getWritePointer(1)};
 
-        // Pull most recent fftSize samples from FIFO
-        const int samplesRead = fifo.pull(channelPointers, fftSize);
-        if (samplesRead < fftSize)
-            return false;
+        const int samplesRead = fifo.pull(channelPointers, toRead);
+        if (samplesRead <= 0)
+            return monoBufferFilled;
 
-        // Mix stereo to mono: (L + R) / 2
-        // Use channel 0 of fftData for time-domain signal
-        auto* fftInput = fftData.getWritePointer(0);
+        // Mix stereo to mono and shift into the sliding window ring buffer
+        auto* ringData = monoRingBuffer.getWritePointer(0);
         const auto* left = tempBuffer.getReadPointer(0);
         const auto* right = tempBuffer.getReadPointer(1);
+
+        for (int i = 0; i < samplesRead; ++i) {
+            ringData[monoWritePos] = (left[i] + right[i]) * 0.5f;
+            monoWritePos = (monoWritePos + 1) % fftSize;
+        }
+
+        // Track whether we've accumulated at least one full window
+        if (!monoBufferFilled) {
+            monoSamplesAccumulated += samplesRead;
+            if (monoSamplesAccumulated >= fftSize)
+                monoBufferFilled = true;
+            else
+                return false; // Not enough data yet for the first FFT
+        }
+
+        // Copy ring buffer into FFT input in correct order (oldest→newest)
+        // and apply Hann window in the same pass
+        auto* fftInput = fftData.getWritePointer(0);
         const auto* windowData = window.getReadPointer(0);
 
         for (int i = 0; i < fftSize; ++i) {
-            // Mix to mono and apply window in one pass
-            fftInput[i] = ((left[i] + right[i]) * 0.5f) * windowData[i];
+            const int ringIdx = (monoWritePos + i) % fftSize; // oldest sample first
+            fftInput[i] = ringData[ringIdx] * windowData[i];
         }
 
         // Zero the imaginary part (interleaved real/imag format required by JUCE FFT)
@@ -231,4 +265,10 @@ class FFTProcessor {
 
     // Smoothed magnitude spectrum (temporal smoothing applied)
     juce::AudioBuffer<float> smoothedMagnitudeSpectrum;
+
+    // Sliding window: local mono ring buffer holding the last fftSize samples
+    juce::AudioBuffer<float> monoRingBuffer;
+    int monoWritePos = 0;
+    bool monoBufferFilled = false;
+    int monoSamplesAccumulated = 0;
 };
