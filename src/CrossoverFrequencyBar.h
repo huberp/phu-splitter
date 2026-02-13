@@ -35,6 +35,10 @@ class CrossoverFrequencyBar : public juce::Component, public juce::Timer {
 
     CrossoverFrequencyBar(PhuSplitterAudioProcessor& processor, FFTProcessor* inputFFT = nullptr,
                           FFTProcessor* outputSumFFT = nullptr);
+
+    // Control which FFT spectrums are rendered
+    void setInputFFTEnabled(bool enabled) { inputFFTEnabled = enabled; }
+    void setOutputFFTEnabled(bool enabled) { outputFFTEnabled = enabled; }
     ~CrossoverFrequencyBar() override;
 
     void paint(juce::Graphics& g) override;
@@ -104,7 +108,7 @@ class CrossoverFrequencyBar : public juce::Component, public juce::Timer {
 
     // --- Spectrum display ---
     void drawSpectrum(juce::Graphics& g, const juce::Rectangle<int>& bounds,
-                      FFTProcessor* fftProcessor);
+                      FFTProcessor* fftProcessor, float lineWidth, juce::Colour colour);
 
     PhuSplitterAudioProcessor& processorRef;
 
@@ -128,6 +132,10 @@ class CrossoverFrequencyBar : public juce::Component, public juce::Timer {
     // FFT processor references for spectrum display (optional)
     FFTProcessor* inputFFTProcessor = nullptr;
     FFTProcessor* outputSumFFTProcessor = nullptr;
+
+    // FFT rendering enabled flags
+    bool inputFFTEnabled = false;
+    bool outputFFTEnabled = true; // default: output enabled
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CrossoverFrequencyBar)
 };

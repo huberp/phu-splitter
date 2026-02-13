@@ -87,6 +87,23 @@ PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudi
     };
     addAndMakeVisible(freqSmoothSlider);
 
+    // FFT enable toggles
+    inputFFTToggle.setButtonText("Input FFT");
+    inputFFTToggle.setToggleState(false, juce::dontSendNotification);
+    inputFFTToggle.onClick = [this]() {
+        crossoverBar.setInputFFTEnabled(inputFFTToggle.getToggleState());
+        crossoverBar.repaint();
+    };
+    addAndMakeVisible(inputFFTToggle);
+
+    outputFFTToggle.setButtonText("Output FFT");
+    outputFFTToggle.setToggleState(true, juce::dontSendNotification);
+    outputFFTToggle.onClick = [this]() {
+        crossoverBar.setOutputFFTEnabled(outputFFTToggle.getToggleState());
+        crossoverBar.repaint();
+    };
+    addAndMakeVisible(outputFFTToggle);
+
     // Initialize FFT processors with slider values
     inputFFT.setFFTOrder(static_cast<int>(fftSizeSlider.getValue()));
     outputSumFFT.setFFTOrder(static_cast<int>(fftSizeSlider.getValue()));
@@ -197,6 +214,14 @@ void PhuSplitterAudioProcessorEditor::resized() {
     freqSmoothLabel.setBounds(bottomRow.removeFromLeft(labelWidth));
     freqSmoothSlider.setBounds(bottomRow.removeFromLeft(sliderWidth));
 
+    area.removeFromTop(3);
+
+    // FFT enable toggles row
+    auto toggleRow = area.removeFromTop(22);
+    inputFFTToggle.setBounds(toggleRow.removeFromLeft(100));
+    toggleRow.removeFromLeft(10);
+    outputFFTToggle.setBounds(toggleRow.removeFromLeft(100));
+
     area.removeFromTop(8);
 
 #ifndef NDEBUG // Debug builds only
@@ -208,10 +233,12 @@ void PhuSplitterAudioProcessorEditor::resized() {
 }
 
 void PhuSplitterAudioProcessorEditor::timerCallback() {
-    // Process FFT on UI thread at 60 Hz
+    // Process FFT on UI thread at 60 Hz (only if enabled)
     // Read from audio FIFOs and compute magnitude spectra
-    inputFFT.process(audioProcessor.getInputFifo());
-    outputSumFFT.process(audioProcessor.getOutputSumFifo());
+    if (inputFFTToggle.getToggleState())
+        inputFFT.process(audioProcessor.getInputFifo());
+    if (outputFFTToggle.getToggleState())
+        outputSumFFT.process(audioProcessor.getOutputSumFifo());
 
     // Trigger repaint of spectrum visualization
     crossoverBar.repaint();

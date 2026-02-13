@@ -323,8 +323,13 @@ void CrossoverFrequencyBar::paint(juce::Graphics& g) {
     auto bar = getBarArea();
 
     // Draw spectrum first (behind everything)
-    if (outputSumFFTProcessor != nullptr) {
-        drawSpectrum(g, bar, outputSumFFTProcessor);
+    // Output FFT: thicker white line (more prominent)
+    if (outputFFTEnabled && outputSumFFTProcessor != nullptr) {
+        drawSpectrum(g, bar, outputSumFFTProcessor, 2.0f, juce::Colour(0xA0FFFFFF));
+    }
+    // Input FFT: thinner, slightly dimmer line (for reference)
+    if (inputFFTEnabled && inputFFTProcessor != nullptr) {
+        drawSpectrum(g, bar, inputFFTProcessor, 1.0f, juce::Colour(0x80FFFFFF));
     }
 
     // Draw reference grid lines (behind everything)
@@ -575,7 +580,7 @@ void CrossoverFrequencyBar::mouseDoubleClick(const juce::MouseEvent& e) {
 }
 
 void CrossoverFrequencyBar::drawSpectrum(juce::Graphics& g, const juce::Rectangle<int>& bounds,
-                                         FFTProcessor* fftProcessor) {
+                                         FFTProcessor* fftProcessor, float lineWidth, juce::Colour colour) {
     if (fftProcessor == nullptr)
         return;
 
@@ -649,7 +654,7 @@ void CrossoverFrequencyBar::drawSpectrum(juce::Graphics& g, const juce::Rectangl
     // Smooth the path using rounded corners for natural spectrum appearance
     if (!firstPoint) {
         juce::Path smoothPath = spectrumPath.createPathWithRoundedCorners(1.5f);
-        g.setColour(juce::Colour(0xA0FFFFFF)); // 63% opacity white
-        g.strokePath(smoothPath, juce::PathStrokeType(2.0f));
+        g.setColour(colour);
+        g.strokePath(smoothPath, juce::PathStrokeType(lineWidth));
     }
 }

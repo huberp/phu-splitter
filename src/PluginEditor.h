@@ -57,5 +57,9 @@ class PhuSplitterAudioProcessorEditor : public juce::AudioProcessorEditor,
     juce::Slider freqSmoothSlider;
     juce::Label freqSmoothLabel;
 
+    // FFT enable toggles
+    juce::ToggleButton inputFFTToggle;
+    juce::ToggleButton outputFFTToggle;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PhuSplitterAudioProcessorEditor)
 };
