@@ -43,9 +43,19 @@ class PhuSplitterAudioProcessorEditor : public juce::AudioProcessorEditor,
 #endif
 
     // FFT processors for spectrum analysis (UI thread only)
-    // Order 14 = 16384 samples = ~341ms at 48kHz
-    FFTProcessor inputFFT{14};
-    FFTProcessor outputSumFFT{14};
+    // Order 12 = 4096 samples = ~85ms at 48kHz (responsive updates)
+    FFTProcessor inputFFT{12};
+    FFTProcessor outputSumFFT{12};
+
+    // Spectrum display controls
+    juce::Slider fftSizeSlider;
+    juce::Label fftSizeLabel;
+    juce::Slider attackSlider;
+    juce::Label attackLabel;
+    juce::Slider decaySlider;
+    juce::Label decayLabel;
+    juce::Slider freqSmoothSlider;
+    juce::Label freqSmoothLabel;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PhuSplitterAudioProcessorEditor)
 };
