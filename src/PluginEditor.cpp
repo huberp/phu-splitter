@@ -145,8 +145,8 @@ PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudi
     addLogMessage("PhuSplitter Debug Log initialized");
 #else
     // Smaller editor size for release builds (no debug log)
-    // Release build: increased height for spectrum controls
-    setSize(810, 330);
+    // Release build: height for all controls + FFT toggles + margins
+    setSize(810, 400);
 #endif
 }
 
