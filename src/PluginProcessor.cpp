@@ -50,6 +50,7 @@ PhuSplitterAudioProcessor::~PhuSplitterAudioProcessor() {
 }
 
 void PhuSplitterAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
+    (void)samplesPerBlock; // Unused parameter
     syncGlobals.updateSampleRate(sampleRate);
 
     // Reset spectrum display FIFOs on playback restart / sample rate change

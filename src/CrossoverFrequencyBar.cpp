@@ -153,7 +153,7 @@ void CrossoverFrequencyBar::createTextBoxes() {
         auto label = std::make_unique<juce::Label>();
         label->setEditable(false, true, false); // not editable by single click, but by double-click
         label->setJustificationType(juce::Justification::centred);
-        label->setFont(juce::Font(12.0f));
+        label->setFont(juce::Font(juce::FontOptions().withHeight(12.0f)));
         label->setColour(juce::Label::textColourId, juce::Colours::white);
         label->setColour(juce::Label::backgroundColourId, juce::Colour(0xFF333333));
         label->setColour(juce::Label::outlineColourId, juce::Colour(0xFF666666));
@@ -380,7 +380,7 @@ void CrossoverFrequencyBar::paint(juce::Graphics& g) {
         // Band name label (centred in region, only if wide enough)
         if (bandRect.getWidth() > 30.0f) {
             g.setColour(juce::Colours::white.withAlpha(0.85f));
-            g.setFont(juce::Font(11.0f, juce::Font::bold));
+            g.setFont(juce::Font(juce::FontOptions().withHeight(11.0f).withStyle(juce::Font::bold)));
 
             // Position label at top of band
             auto labelRect = bandRect.withHeight(20.0f);
@@ -415,7 +415,7 @@ void CrossoverFrequencyBar::paint(juce::Graphics& g) {
         else
             gainText = juce::String(bandGainsDB[band], 1) + "dB";
         float fontSize = active ? 11.0f : 10.0f;
-        juce::Font font = juce::Font(fontSize, active ? juce::Font::bold : juce::Font::plain);
+        juce::Font font = juce::Font(juce::FontOptions().withHeight(fontSize).withStyle(active ? juce::Font::bold : juce::Font::plain));
         g.setFont(font);
         g.setColour(active ? juce::Colours::white : juce::Colours::white.withAlpha(0.8f));
 
@@ -449,7 +449,7 @@ void CrossoverFrequencyBar::paint(juce::Graphics& g) {
 
     // Draw frequency axis ticks at bottom of bar
     g.setColour(juce::Colours::white.withAlpha(0.5f));
-    g.setFont(juce::Font(9.0f));
+    g.setFont(juce::Font(juce::FontOptions().withHeight(9.0f)));
 
     static const float tickFreqs[] = {20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000};
     static const char* tickLabels[] = {"20", "50", "100", "200", "500",
