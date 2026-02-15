@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../lib/FFTProcessor.h"
+#include "../lib/SpectrumBroadcaster.h"
 #include "BandControlStrip.h"
 #include "CrossoverFrequencyBar.h"
 #include "PresetStrip.h"
@@ -60,6 +61,12 @@ class PhuSplitterAudioProcessorEditor : public juce::AudioProcessorEditor,
     // FFT enable toggles
     juce::ToggleButton inputFFTToggle;
     juce::ToggleButton outputFFTToggle;
+    juce::ToggleButton remoteFFTToggle;
+    
+    // Spectrum broadcasting
+    SpectrumBroadcaster spectrumBroadcaster;
+    juce::ToggleButton broadcastToggle;
+    juce::Label broadcastLabel;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PhuSplitterAudioProcessorEditor)
 };

@@ -25,6 +25,8 @@ target_sources(phu-splitter PRIVATE
     EditorLogger.cpp
     EditorLogger.h
     LinkwitzRileyFilter.h
+    ../lib/SpectrumBroadcaster.cpp
+    ../lib/SpectrumBroadcaster.h
 )
 
 target_compile_definitions(phu-splitter PUBLIC

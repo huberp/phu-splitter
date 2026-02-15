@@ -104,6 +104,47 @@ PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudi
     };
     addAndMakeVisible(outputFFTToggle);
 
+    remoteFFTToggle.setButtonText("Remote FFT");
+    remoteFFTToggle.setToggleState(true, juce::dontSendNotification);
+    remoteFFTToggle.onClick = [this]() {
+        crossoverBar.setRemoteFFTEnabled(remoteFFTToggle.getToggleState());
+        crossoverBar.repaint();
+    };
+    addAndMakeVisible(remoteFFTToggle);
+
+    // Broadcast controls
+    broadcastLabel.setText("Multicast:", juce::dontSendNotification);
+    broadcastLabel.setJustificationType(juce::Justification::centredRight);
+    broadcastLabel.setFont(juce::Font(11.0f));
+    addAndMakeVisible(broadcastLabel);
+
+    broadcastToggle.setButtonText("Broadcast Spectrum");
+    broadcastToggle.setToggleState(false, juce::dontSendNotification);
+    broadcastToggle.onClick = [this]() {
+        bool enabled = broadcastToggle.getToggleState();
+        if (enabled) {
+            if (spectrumBroadcaster.initialize()) {
+                spectrumBroadcaster.setBroadcastEnabled(true);
+                spectrumBroadcaster.setReceiveEnabled(true);
+#ifndef NDEBUG
+                addLogMessage("Spectrum broadcasting initialized (ID: " + 
+                             juce::String(spectrumBroadcaster.getInstanceID()) + ")");
+#endif
+            } else {
+                broadcastToggle.setToggleState(false, juce::dontSendNotification);
+#ifndef NDEBUG
+                addLogMessage("Failed to initialize spectrum broadcasting");
+#endif
+            }
+        } else {
+            spectrumBroadcaster.shutdown();
+#ifndef NDEBUG
+            addLogMessage("Spectrum broadcasting disabled");
+#endif
+        }
+    };
+    addAndMakeVisible(broadcastToggle);
+
     // Initialize FFT processors with slider values
     inputFFT.setFFTOrder(static_cast<int>(fftSizeSlider.getValue()));
     outputSumFFT.setFFTOrder(static_cast<int>(fftSizeSlider.getValue()));
@@ -138,21 +179,24 @@ PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudi
     addAndMakeVisible(logTextEditor);
 
     // Set editor size (wider for crossover bar, taller to fit both sections)
-    // Debug build: increased height for spectrum controls
-    setSize(810, 630);
+    // Debug build: increased height for spectrum controls + broadcast controls
+    setSize(810, 680);
 
     // Add initial welcome message
     addLogMessage("PhuSplitter Debug Log initialized");
 #else
     // Smaller editor size for release builds (no debug log)
-    // Release build: height for all controls + FFT toggles + margins
-    setSize(810, 400);
+    // Release build: height for all controls + FFT toggles + broadcast controls + margins
+    setSize(810, 450);
 #endif
 }
 
 PhuSplitterAudioProcessorEditor::~PhuSplitterAudioProcessorEditor() {
     // Stop FFT timer
     stopTimer();
+
+    // Shutdown broadcaster
+    spectrumBroadcaster.shutdown();
 
 #ifndef NDEBUG // Debug builds only
     // Unregister from logger
@@ -218,6 +262,15 @@ void PhuSplitterAudioProcessorEditor::resized() {
 
     // FFT enable toggles row
     auto toggleRow = area.removeFromTop(22);
+    toggleRow.removeFromLeft(10);
+    remoteFFTToggle.setBounds(toggleRow.removeFromLeft(100));
+
+    area.removeFromTop(3);
+
+    // Broadcast control row
+    auto broadcastRow = area.removeFromTop(22);
+    broadcastLabel.setBounds(broadcastRow.removeFromLeft(70));
+    broadcastToggle.setBounds(broadcastRow.removeFromLeft(160));
     inputFFTToggle.setBounds(toggleRow.removeFromLeft(100));
     toggleRow.removeFromLeft(10);
     outputFFTToggle.setBounds(toggleRow.removeFromLeft(100));
@@ -231,7 +284,24 @@ void PhuSplitterAudioProcessorEditor::resized() {
     logTextEditor.setBounds(area);
 #endif
 }
+Broadcast local spectrum if enabled
+    if (spectrumBroadcaster.isRunning() && outputFFTToggle.getToggleState()) {
+        const float* magnitudes = outputSumFFT.getMagnitudeSpectrum();
+        int numBins = outputSumFFT.getNumBins();
+        float sampleRate = static_cast<float>(audioProcessor.getSampleRate());
+        
+        spectrumBroadcaster.broadcastSpectrum(magnitudes, numBins, sampleRate);
+    }
 
+    // Receive remote spectrums
+    if (spectrumBroadcaster.isRunning() && remoteFFTToggle.getToggleState()) {
+        auto remoteSpectrums = spectrumBroadcaster.getReceivedSpectrums();
+        crossoverBar.setRemoteSpectrums(remoteSpectrums);
+    } else {
+        crossoverBar.setRemoteSpectrums({});
+    }
+
+    // 
 void PhuSplitterAudioProcessorEditor::timerCallback() {
     // Process FFT on UI thread at 60 Hz (only if enabled)
     // Read from audio FIFOs and compute magnitude spectra

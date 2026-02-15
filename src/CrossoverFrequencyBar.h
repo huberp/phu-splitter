@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../lib/FFTProcessor.h"
+#include "../lib/SpectrumBroadcaster.h"
 #include <array>
 #include <juce_audio_processors/juce_audio_processors.h>
 
@@ -39,6 +40,13 @@ class CrossoverFrequencyBar : public juce::Component, public juce::Timer {
     // Control which FFT spectrums are rendered
     void setInputFFTEnabled(bool enabled) { inputFFTEnabled = enabled; }
     void setOutputFFTEnabled(bool enabled) { outputFFTEnabled = enabled; }
+    void setRemoteFFTEnabled(bool enabled) { remoteFFTEnabled = enabled; }
+    
+    // Update remote spectrums from other instances
+    void setRemoteSpectrums(const std::vector<SpectrumBroadcaster::RemoteSpectrum>& spectrums) {
+        remoteSpectrums = spectrums;
+    }
+    
     ~CrossoverFrequencyBar() override;
 
     void paint(juce::Graphics& g) override;
@@ -102,6 +110,9 @@ class CrossoverFrequencyBar : public juce::Component, public juce::Timer {
     int getDividerHitZoneHalfWidth() const {
         return 6;
     }
+    void drawRemoteSpectrum(juce::Graphics& g, const juce::Rectangle<int>& bounds,
+                           const SpectrumBroadcaster::RemoteSpectrum& spectrum,
+                           float lineWidth, juce::Colour colour);
     int dividerXForIndex(size_t index) const;
     int hitTestDivider(int x) const;         // returns index or -1
     int hitTestGainLine(int x, int y) const; // returns band index or -1
@@ -133,6 +144,10 @@ class CrossoverFrequencyBar : public juce::Component, public juce::Timer {
     FFTProcessor* inputFFTProcessor = nullptr;
     FFTProcessor* outputSumFFTProcessor = nullptr;
 
+    bool remoteFFTEnabled = true; // default: remote enabled
+    
+    // Remote spectrum data from other instances
+    std::vector<SpectrumBroadcaster::RemoteSpectrum> remoteSpectrums;
     // FFT rendering enabled flags
     bool inputFFTEnabled = false;
     bool outputFFTEnabled = true; // default: output enabled

@@ -331,6 +331,17 @@ void CrossoverFrequencyBar::paint(juce::Graphics& g) {
     if (inputFFTEnabled && inputFFTProcessor != nullptr) {
         drawSpectrum(g, bar, inputFFTProcessor, 1.0f, juce::Colour(0x80FFFFFF));
     }
+    
+    // Remote FFTs: thin colored lines for each remote instance
+    if (remoteFFTEnabled && !remoteSpectrums.empty()) {
+        // Use different colors for each remote instance (cycle through hues)
+        const float hueStep = 360.0f / 12.0f; // 12 distinct colors
+        for (size_t i = 0; i < remoteSpectrums.size(); ++i) {
+            float hue = std::fmod(static_cast<float>(remoteSpectrums[i].instanceID % 12) * hueStep, 360.0f);
+            juce::Colour remoteColour = juce::Colour::fromHSV(hue / 360.0f, 0.7f, 0.9f, 0.5f);
+            drawRemoteSpectrum(g, bar, remoteSpectrums[i], 1.5f, remoteColour);
+        }
+    }
 
     // Draw reference grid lines (behind everything)
     g.setColour(juce::Colours::white.withAlpha(0.15f));
@@ -652,6 +663,86 @@ void CrossoverFrequencyBar::drawSpectrum(juce::Graphics& g, const juce::Rectangl
     }
 
     // Smooth the path using rounded corners for natural spectrum appearance
+    if (!firstPoint) {
+        juce::Path smoothPath = spectrumPath.createPathWithRoundedCorners(1.5f);
+        g.setColour(colour);
+        g.strokePath(smoothPath, juce::PathStrokeType(lineWidth));
+    }
+}
+
+void CrossoverFrequencyBar::drawRemoteSpectrum(juce::Graphics& g, const juce::Rectangle<int>& bounds,
+                                               const SpectrumBroadcaster::RemoteSpectrum& spectrum,
+                                               float lineWidth, juce::Colour colour) {
+    if (spectrum.magnitudes.empty()) {
+        return;
+    }
+
+    const int numBins = static_cast<int>(spectrum.magnitudes.size());
+    const float sampleRate = spectrum.sampleRate;
+
+    if (numBins <= 0 || sampleRate <= 0.0f) {
+        return;
+    }
+
+    // Draw spectrum with logarithmic frequency scale
+    const float minFreq = 20.0f;
+    const float maxFreq = sampleRate * 0.5f; // Nyquist
+    const float logMin = std::log10(minFreq);
+    const float logMax = std::log10(maxFreq);
+
+    const int width = bounds.getWidth();
+    const int height = bounds.getHeight();
+
+    // Build spectrum path
+    juce::Path spectrumPath;
+    bool firstPoint = true;
+
+    // Sample points across the width
+    for (int x = 0; x < width; ++x) {
+        // Map X position to frequency (logarithmic)
+        const float proportion = static_cast<float>(x) / static_cast<float>(width);
+        const float logFreq = logMin + proportion * (logMax - logMin);
+        const float freq = std::pow(10.0f, logFreq);
+
+        // Calculate exact fractional bin position (for interpolation)
+        // Remote spectrums are compressed to MAX_SPECTRUM_BINS
+        const float exactBin = (freq / (sampleRate * 0.5f)) * static_cast<float>(numBins);
+        const int bin0 = static_cast<int>(std::floor(exactBin));
+        const int bin1 = bin0 + 1;
+        const float binFraction = exactBin - static_cast<float>(bin0);
+
+        // Interpolate magnitude between adjacent bins
+        float magnitude = 0.0f;
+        if (bin0 >= 0 && bin1 < numBins) {
+            const float mag0 = spectrum.magnitudes[bin0];
+            const float mag1 = spectrum.magnitudes[bin1];
+            magnitude = mag0 + binFraction * (mag1 - mag0);
+        } else if (bin0 >= 0 && bin0 < numBins) {
+            magnitude = spectrum.magnitudes[bin0];
+        } else {
+            continue;
+        }
+
+        // Convert to dB (remote magnitudes are already dequantized 0-1)
+        magnitude = juce::jmax(magnitude, 1e-9f);
+        const float dB = 20.0f * std::log10(magnitude);
+
+        // Map dB to vertical position
+        const float dbMin = -80.0f;
+        const float dbMax = 0.0f;
+        const float normalizedDB = juce::jlimit(0.0f, 1.0f, (dB - dbMin) / (dbMax - dbMin));
+        const float yPos = bounds.getY() + (1.0f - normalizedDB) * static_cast<float>(height);
+        const float xPos = static_cast<float>(bounds.getX() + x);
+
+        if (firstPoint) {
+            spectrumPath.startNewSubPath(xPos, yPos);
+            firstPoint = false;
+        } else {
+            spectrumPath.lineTo(xPos, yPos);
+        }
+    }
+
+    // Smooth and draw the path
     if (!firstPoint) {
         juce::Path smoothPath = spectrumPath.createPathWithRoundedCorners(1.5f);
         g.setColour(colour);
