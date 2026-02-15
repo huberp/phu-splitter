@@ -14,7 +14,7 @@ PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudi
     // Set up crossover bar label
     crossoverLabel.setText("Crossover Frequencies", juce::dontSendNotification);
     crossoverLabel.setJustificationType(juce::Justification::centredLeft);
-    crossoverLabel.setFont(juce::Font(juce::FontOptions().withHeight(14.0f).withStyle(juce::Font::bold)));
+    crossoverLabel.setFont(juce::Font(juce::FontOptions(14.0f, juce::Font::bold)));
     addAndMakeVisible(crossoverLabel);
 
     // Add crossover frequency bar
@@ -23,7 +23,7 @@ PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudi
     // Set up spectrum control sliders
     fftSizeLabel.setText("FFT Size", juce::dontSendNotification);
     fftSizeLabel.setJustificationType(juce::Justification::centredLeft);
-    fftSizeLabel.setFont(juce::Font(juce::FontOptions().withHeight(11.0f)));
+    fftSizeLabel.setFont(juce::Font(juce::FontOptions(11.0f)));
     addAndMakeVisible(fftSizeLabel);
 
     fftSizeSlider.setRange(10, 15, 1); // 1024 to 32768
@@ -39,7 +39,7 @@ PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudi
 
     attackLabel.setText("Attack", juce::dontSendNotification);
     attackLabel.setJustificationType(juce::Justification::centredLeft);
-    attackLabel.setFont(juce::Font(juce::FontOptions().withHeight(11.0f)));
+    attackLabel.setFont(juce::Font(juce::FontOptions(11.0f)));
     addAndMakeVisible(attackLabel);
 
     attackSlider.setRange(0.0, 1.0, 0.01);
@@ -56,7 +56,7 @@ PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudi
 
     decayLabel.setText("Decay", juce::dontSendNotification);
     decayLabel.setJustificationType(juce::Justification::centredLeft);
-    decayLabel.setFont(juce::Font(juce::FontOptions().withHeight(11.0f)));
+    decayLabel.setFont(juce::Font(juce::FontOptions(11.0f)));
     addAndMakeVisible(decayLabel);
 
     decaySlider.setRange(0.0, 1.0, 0.01);
@@ -73,7 +73,7 @@ PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudi
 
     freqSmoothLabel.setText("Freq Smooth", juce::dontSendNotification);
     freqSmoothLabel.setJustificationType(juce::Justification::centredLeft);
-    freqSmoothLabel.setFont(juce::Font(juce::FontOptions().withHeight(11.0f)));
+    freqSmoothLabel.setFont(juce::Font(juce::FontOptions(11.0f)));
     addAndMakeVisible(freqSmoothLabel);
 
     freqSmoothSlider.setRange(0.0, 1.0, 0.01);
@@ -115,7 +115,7 @@ PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudi
     // Broadcast controls
     broadcastLabel.setText("Multicast:", juce::dontSendNotification);
     broadcastLabel.setJustificationType(juce::Justification::centredRight);
-    broadcastLabel.setFont(juce::Font(juce::FontOptions().withHeight(11.0f)));
+    broadcastLabel.setFont(juce::Font(juce::FontOptions(11.0f)));
     addAndMakeVisible(broadcastLabel);
 
     broadcastToggle.setButtonText("Broadcast Spectrum");
