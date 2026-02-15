@@ -52,6 +52,10 @@ PhuSplitterAudioProcessor::~PhuSplitterAudioProcessor() {
 void PhuSplitterAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
     syncGlobals.updateSampleRate(sampleRate);
 
+    // Reset spectrum display FIFOs on playback restart / sample rate change
+    m_inputFifo.reset();
+    m_outputSumFifo.reset();
+
     // Read current crossover frequencies from parameters
     for (size_t i = 0; i < NUM_CROSSOVER_FREQS; ++i)
         currentFreqs[i] = crossoverParamPtrs[i]->load();
@@ -136,6 +140,12 @@ void PhuSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     const float* inputL = buffer.getReadPointer(0);
     const float* inputR = buffer.getReadPointer(1);
 
+    // Push raw stereo input into FIFO for UI spectrum display
+    {
+        const float* inputChannels[2] = { inputL, inputR };
+        m_inputFifo.push(inputChannels, numSamples);
+    }
+
     // Process each sample through the multiband crossover
     // Output 7 stereo bands (14 channels total)
     std::array<float, NUM_BANDS> bandsL;
@@ -165,6 +175,11 @@ void PhuSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         finalGains[band] = shouldPlay ? currentLinearGains[band] : 0.0f;
     }
 
+    // Clear sum buffers for output sum accumulation
+    const int samplesToProcess = juce::jmin(numSamples, kMaxBlockSize);
+    std::memset(m_sumL.data(), 0, sizeof(float) * static_cast<size_t>(samplesToProcess));
+    std::memset(m_sumR.data(), 0, sizeof(float) * static_cast<size_t>(samplesToProcess));
+
     for (int i = 0; i < numSamples; ++i) {
         // Process this sample through the multiband crossover
         m_multiBand.processSample(inputL[i], inputR[i], bandsL.data(), bandsR.data());
@@ -175,15 +190,30 @@ void PhuSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             const int leftChannel = static_cast<int>(band * 2);
             const int rightChannel = leftChannel + 1;
 
+            const float bandL = bandsL[band] * finalGains[band];
+            const float bandR = bandsR[band] * finalGains[band];
+
             if (leftChannel < totalOutputChannels) {
                 float* outL = buffer.getWritePointer(leftChannel);
-                outL[i] = bandsL[band] * finalGains[band];
+                outL[i] = bandL;
             }
             if (rightChannel < totalOutputChannels) {
                 float* outR = buffer.getWritePointer(rightChannel);
-                outR[i] = bandsR[band] * finalGains[band];
+                outR[i] = bandR;
+            }
+
+            // Accumulate output sum for spectrum display
+            if (i < kMaxBlockSize) {
+                m_sumL[static_cast<size_t>(i)] += bandL;
+                m_sumR[static_cast<size_t>(i)] += bandR;
             }
         }
+    }
+
+    // Push stereo output sum into FIFO for UI spectrum display
+    {
+        const float* sumChannels[2] = { m_sumL.data(), m_sumR.data() };
+        m_outputSumFifo.push(sumChannels, samplesToProcess);
     }
 
     // Mark end of processing

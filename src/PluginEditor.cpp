@@ -4,7 +4,7 @@
 
 PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudioProcessor& p)
     : AudioProcessorEditor(&p), audioProcessor(p), presetStrip(p), bandControlStrip(p),
-      crossoverBar(p) {
+      crossoverBar(p, &inputFFT, &outputSumFFT) {
     // Add preset strip
     addAndMakeVisible(presetStrip);
 
@@ -19,6 +19,103 @@ PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudi
 
     // Add crossover frequency bar
     addAndMakeVisible(crossoverBar);
+
+    // Set up spectrum control sliders
+    fftSizeLabel.setText("FFT Size", juce::dontSendNotification);
+    fftSizeLabel.setJustificationType(juce::Justification::centredLeft);
+    fftSizeLabel.setFont(juce::Font(11.0f));
+    addAndMakeVisible(fftSizeLabel);
+
+    fftSizeSlider.setRange(10, 15, 1); // 1024 to 32768
+    fftSizeSlider.setValue(12, juce::dontSendNotification);
+    fftSizeSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    fftSizeSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 40, 20);
+    fftSizeSlider.onValueChange = [this]() {
+        int order = static_cast<int>(fftSizeSlider.getValue());
+        inputFFT.setFFTOrder(order);
+        outputSumFFT.setFFTOrder(order);
+    };
+    addAndMakeVisible(fftSizeSlider);
+
+    attackLabel.setText("Attack", juce::dontSendNotification);
+    attackLabel.setJustificationType(juce::Justification::centredLeft);
+    attackLabel.setFont(juce::Font(11.0f));
+    addAndMakeVisible(attackLabel);
+
+    attackSlider.setRange(0.0, 1.0, 0.01);
+    attackSlider.setValue(0.0, juce::dontSendNotification);
+    attackSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    attackSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 50, 20);
+    attackSlider.onValueChange = [this]() {
+        float attack = static_cast<float>(attackSlider.getValue());
+        float decay = static_cast<float>(decaySlider.getValue());
+        inputFFT.setTemporalSmoothing(attack, decay);
+        outputSumFFT.setTemporalSmoothing(attack, decay);
+    };
+    addAndMakeVisible(attackSlider);
+
+    decayLabel.setText("Decay", juce::dontSendNotification);
+    decayLabel.setJustificationType(juce::Justification::centredLeft);
+    decayLabel.setFont(juce::Font(11.0f));
+    addAndMakeVisible(decayLabel);
+
+    decaySlider.setRange(0.0, 1.0, 0.01);
+    decaySlider.setValue(0.0, juce::dontSendNotification);
+    decaySlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    decaySlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 50, 20);
+    decaySlider.onValueChange = [this]() {
+        float attack = static_cast<float>(attackSlider.getValue());
+        float decay = static_cast<float>(decaySlider.getValue());
+        inputFFT.setTemporalSmoothing(attack, decay);
+        outputSumFFT.setTemporalSmoothing(attack, decay);
+    };
+    addAndMakeVisible(decaySlider);
+
+    freqSmoothLabel.setText("Freq Smooth", juce::dontSendNotification);
+    freqSmoothLabel.setJustificationType(juce::Justification::centredLeft);
+    freqSmoothLabel.setFont(juce::Font(11.0f));
+    addAndMakeVisible(freqSmoothLabel);
+
+    freqSmoothSlider.setRange(0.0, 1.0, 0.01);
+    freqSmoothSlider.setValue(0.3, juce::dontSendNotification);
+    freqSmoothSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    freqSmoothSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 50, 20);
+    freqSmoothSlider.onValueChange = [this]() {
+        float strength = static_cast<float>(freqSmoothSlider.getValue());
+        inputFFT.setFrequencySmoothing(strength);
+        outputSumFFT.setFrequencySmoothing(strength);
+    };
+    addAndMakeVisible(freqSmoothSlider);
+
+    // FFT enable toggles
+    inputFFTToggle.setButtonText("Input FFT");
+    inputFFTToggle.setToggleState(false, juce::dontSendNotification);
+    inputFFTToggle.onClick = [this]() {
+        crossoverBar.setInputFFTEnabled(inputFFTToggle.getToggleState());
+        crossoverBar.repaint();
+    };
+    addAndMakeVisible(inputFFTToggle);
+
+    outputFFTToggle.setButtonText("Output FFT");
+    outputFFTToggle.setToggleState(true, juce::dontSendNotification);
+    outputFFTToggle.onClick = [this]() {
+        crossoverBar.setOutputFFTEnabled(outputFFTToggle.getToggleState());
+        crossoverBar.repaint();
+    };
+    addAndMakeVisible(outputFFTToggle);
+
+    // Initialize FFT processors with slider values
+    inputFFT.setFFTOrder(static_cast<int>(fftSizeSlider.getValue()));
+    outputSumFFT.setFFTOrder(static_cast<int>(fftSizeSlider.getValue()));
+    inputFFT.setTemporalSmoothing(static_cast<float>(attackSlider.getValue()),
+                                  static_cast<float>(decaySlider.getValue()));
+    outputSumFFT.setTemporalSmoothing(static_cast<float>(attackSlider.getValue()),
+                                      static_cast<float>(decaySlider.getValue()));
+    inputFFT.setFrequencySmoothing(static_cast<float>(freqSmoothSlider.getValue()));
+    outputSumFFT.setFrequencySmoothing(static_cast<float>(freqSmoothSlider.getValue()));
+
+    // Start FFT processing timer at 60 Hz (UI thread)
+    startTimerHz(60);
 
 #ifndef NDEBUG // Debug builds only
     // Set up debug log label
@@ -41,19 +138,22 @@ PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudi
     addAndMakeVisible(logTextEditor);
 
     // Set editor size (wider for crossover bar, taller to fit both sections)
-    // Debug build: increased from 500 to 550px height, width from 750 to 810px
-    setSize(810, 550);
+    // Debug build: increased height for spectrum controls
+    setSize(810, 630);
 
     // Add initial welcome message
     addLogMessage("PhuSplitter Debug Log initialized");
 #else
     // Smaller editor size for release builds (no debug log)
-    // Release build: increased from 200 to 250px height, width from 750 to 810px
-    setSize(810, 250);
+    // Release build: height for all controls + FFT toggles + margins
+    setSize(810, 400);
 #endif
 }
 
 PhuSplitterAudioProcessorEditor::~PhuSplitterAudioProcessorEditor() {
+    // Stop FFT timer
+    stopTimer();
+
 #ifndef NDEBUG // Debug builds only
     // Unregister from logger
     if (auto* logger = audioProcessor.getEditorLogger()) {
@@ -91,12 +191,57 @@ void PhuSplitterAudioProcessorEditor::resized() {
     
     area.removeFromTop(10);
 
+    // Spectrum control sliders (compact 2x2 grid)
+    auto controlArea = area.removeFromTop(50);
+    const int labelWidth = 70;
+    const int sliderWidth = (controlArea.getWidth() - labelWidth * 2 - 20) / 2;
+
+    // Top row: FFT Size | Attack
+    auto topRow = controlArea.removeFromTop(22);
+    fftSizeLabel.setBounds(topRow.removeFromLeft(labelWidth));
+    fftSizeSlider.setBounds(topRow.removeFromLeft(sliderWidth));
+    topRow.removeFromLeft(10); // Gap
+    attackLabel.setBounds(topRow.removeFromLeft(labelWidth));
+    attackSlider.setBounds(topRow.removeFromLeft(sliderWidth));
+
+    controlArea.removeFromTop(3); // Gap between rows
+
+    // Bottom row: Decay | Freq Smooth
+    auto bottomRow = controlArea.removeFromTop(22);
+    decayLabel.setBounds(bottomRow.removeFromLeft(labelWidth));
+    decaySlider.setBounds(bottomRow.removeFromLeft(sliderWidth));
+    bottomRow.removeFromLeft(10); // Gap
+    freqSmoothLabel.setBounds(bottomRow.removeFromLeft(labelWidth));
+    freqSmoothSlider.setBounds(bottomRow.removeFromLeft(sliderWidth));
+
+    area.removeFromTop(3);
+
+    // FFT enable toggles row
+    auto toggleRow = area.removeFromTop(22);
+    inputFFTToggle.setBounds(toggleRow.removeFromLeft(100));
+    toggleRow.removeFromLeft(10);
+    outputFFTToggle.setBounds(toggleRow.removeFromLeft(100));
+
+    area.removeFromTop(8);
+
 #ifndef NDEBUG // Debug builds only
     // Debug log section below (debug builds only)
     logLabel.setBounds(area.removeFromTop(25));
     area.removeFromTop(5);
     logTextEditor.setBounds(area);
 #endif
+}
+
+void PhuSplitterAudioProcessorEditor::timerCallback() {
+    // Process FFT on UI thread at 60 Hz (only if enabled)
+    // Read from audio FIFOs and compute magnitude spectra
+    if (inputFFTToggle.getToggleState())
+        inputFFT.process(audioProcessor.getInputFifo());
+    if (outputFFTToggle.getToggleState())
+        outputSumFFT.process(audioProcessor.getOutputSumFifo());
+
+    // Trigger repaint of spectrum visualization
+    crossoverBar.repaint();
 }
 
 #ifndef NDEBUG // Debug builds only

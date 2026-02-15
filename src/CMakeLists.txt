@@ -41,6 +41,7 @@ target_link_libraries(phu-splitter
     PRIVATE
         EventSystem
         juce::juce_audio_processors
+        juce::juce_dsp
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
