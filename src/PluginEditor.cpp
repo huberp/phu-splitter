@@ -271,9 +271,6 @@ void PhuSplitterAudioProcessorEditor::resized() {
     auto broadcastRow = area.removeFromTop(22);
     broadcastLabel.setBounds(broadcastRow.removeFromLeft(70));
     broadcastToggle.setBounds(broadcastRow.removeFromLeft(160));
-    inputFFTToggle.setBounds(toggleRow.removeFromLeft(100));
-    toggleRow.removeFromLeft(10);
-    outputFFTToggle.setBounds(toggleRow.removeFromLeft(100));
 
     area.removeFromTop(8);
 
@@ -284,7 +281,16 @@ void PhuSplitterAudioProcessorEditor::resized() {
     logTextEditor.setBounds(area);
 #endif
 }
-Broadcast local spectrum if enabled
+
+void PhuSplitterAudioProcessorEditor::timerCallback() {
+    // Process FFT on UI thread at 60 Hz (only if enabled)
+    // Read from audio FIFOs and compute magnitude spectra
+    if (inputFFTToggle.getToggleState())
+        inputFFT.process(audioProcessor.getInputFifo());
+    if (outputFFTToggle.getToggleState())
+        outputSumFFT.process(audioProcessor.getOutputSumFifo());
+
+    // Broadcast local spectrum if enabled
     if (spectrumBroadcaster.isRunning() && outputFFTToggle.getToggleState()) {
         const float* magnitudes = outputSumFFT.getMagnitudeSpectrum();
         int numBins = outputSumFFT.getNumBins();
@@ -300,15 +306,6 @@ Broadcast local spectrum if enabled
     } else {
         crossoverBar.setRemoteSpectrums({});
     }
-
-    // 
-void PhuSplitterAudioProcessorEditor::timerCallback() {
-    // Process FFT on UI thread at 60 Hz (only if enabled)
-    // Read from audio FIFOs and compute magnitude spectra
-    if (inputFFTToggle.getToggleState())
-        inputFFT.process(audioProcessor.getInputFifo());
-    if (outputFFTToggle.getToggleState())
-        outputSumFFT.process(audioProcessor.getOutputSumFifo());
 
     // Trigger repaint of spectrum visualization
     crossoverBar.repaint();
