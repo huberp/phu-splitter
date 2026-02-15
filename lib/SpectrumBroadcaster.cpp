@@ -3,6 +3,26 @@
 #include <cstring>
 #include <random>
 
+// Include socket headers only in implementation
+#ifdef _WIN32
+    #ifndef NOMINMAX
+        #define NOMINMAX
+    #endif
+    #include <winsock2.h>
+    #include <ws2tcpip.h>
+    #pragma comment(lib, "ws2_32.lib")
+    #define INVALID_SOCKET_VALUE INVALID_SOCKET
+    #define SOCKET_ERROR_VALUE SOCKET_ERROR
+#else
+    #include <arpa/inet.h>
+    #include <netinet/in.h>
+    #include <sys/socket.h>
+    #include <unistd.h>
+    #define INVALID_SOCKET_VALUE -1
+    #define SOCKET_ERROR_VALUE -1
+    #define closesocket close
+#endif
+
 // Protocol magic number: "SPEC" in ASCII
 static constexpr uint32_t PROTOCOL_MAGIC = 0x53504543;
 static constexpr uint32_t PROTOCOL_VERSION = 1;
@@ -15,13 +35,23 @@ std::mutex SpectrumBroadcaster::wsaMutex;
 
 SpectrumBroadcaster::SpectrumBroadcaster()
     : sendSocket(INVALID_SOCKET_VALUE), recvSocket(INVALID_SOCKET_VALUE),
-      networkInitialized(false), instanceID(0) {
+      multicastAddr(nullptr), networkInitialized(false), instanceID(0) {
+    // Allocate multicast address structure
+    multicastAddr = new sockaddr_in();
+    std::memset(multicastAddr, 0, sizeof(sockaddr_in));
+    
     // Generate unique instance ID
     instanceID = generateInstanceID();
 }
 
 SpectrumBroadcaster::~SpectrumBroadcaster() {
     shutdown();
+    
+    // Free multicast address structure
+    if (multicastAddr) {
+        delete static_cast<sockaddr_in*>(multicastAddr);
+        multicastAddr = nullptr;
+    }
 }
 
 bool SpectrumBroadcaster::initialize() {
@@ -74,10 +104,11 @@ bool SpectrumBroadcaster::initializeSockets() {
     }
 
     // Set up multicast address
-    std::memset(&multicastAddr, 0, sizeof(multicastAddr));
-    multicastAddr.sin_family = AF_INET;
-    multicastAddr.sin_port = htons(MULTICAST_PORT);
-    inet_pton(AF_INET, MULTICAST_GROUP, &multicastAddr.sin_addr);
+    auto* addr = static_cast<sockaddr_in*>(multicastAddr);
+    std::memset(addr, 0, sizeof(sockaddr_in));
+    addr->sin_family = AF_INET;
+    addr->sin_port = htons(MULTICAST_PORT);
+    inet_pton(AF_INET, MULTICAST_GROUP, &addr->sin_addr);
 
     // Enable multicast loopback (receive our own packets for testing)
     // Set to 0 in production to avoid receiving own broadcasts
@@ -205,9 +236,10 @@ bool SpectrumBroadcaster::broadcastSpectrum(const float* magnitudes, int numBins
     compressSpectrum(magnitudes, numBins, packet.magnitudes, outputBins);
 
     // Send packet
+    auto* addr = static_cast<sockaddr_in*>(multicastAddr);
     int bytesSent =
         sendto(sendSocket, reinterpret_cast<const char*>(&packet), sizeof(packet), 0,
-               reinterpret_cast<struct sockaddr*>(&multicastAddr), sizeof(multicastAddr));
+               reinterpret_cast<struct sockaddr*>(addr), sizeof(sockaddr_in));
 
     return bytesSent == static_cast<int>(sizeof(packet));
 }

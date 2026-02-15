@@ -8,25 +8,11 @@
 #include <thread>
 #include <vector>
 
+// Forward declare socket type to avoid including Windows headers in header file
 #ifdef _WIN32
-    #ifndef NOMINMAX
-        #define NOMINMAX
-    #endif
-    #include <winsock2.h>
-    #include <ws2tcpip.h>
-    #pragma comment(lib, "ws2_32.lib")
-    using socket_t = SOCKET;
-    #define INVALID_SOCKET_VALUE INVALID_SOCKET
-    #define SOCKET_ERROR_VALUE SOCKET_ERROR
+    using socket_t = unsigned long long; // SOCKET type on Windows
 #else
-    #include <arpa/inet.h>
-    #include <netinet/in.h>
-    #include <sys/socket.h>
-    #include <unistd.h>
     using socket_t = int;
-    #define INVALID_SOCKET_VALUE -1
-    #define SOCKET_ERROR_VALUE -1
-    #define closesocket close
 #endif
 
 /**
@@ -145,7 +131,7 @@ class SpectrumBroadcaster {
     // Network state
     socket_t sendSocket;
     socket_t recvSocket;
-    struct sockaddr_in multicastAddr;
+    void* multicastAddr; // sockaddr_in* (opaque pointer to avoid including socket headers)
     bool networkInitialized;
 
     // Instance identification
