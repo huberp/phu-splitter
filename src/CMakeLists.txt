@@ -39,6 +39,11 @@ target_compile_definitions(phu-splitter PUBLIC
     JUCE_USE_FLAC=0
 )
 
+# Prevent Windows.h from defining min/max macros
+if(WIN32)
+    target_compile_definitions(phu-splitter PUBLIC NOMINMAX)
+endif()
+
 target_link_libraries(phu-splitter
     PRIVATE
         EventSystem

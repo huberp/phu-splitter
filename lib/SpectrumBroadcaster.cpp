@@ -200,16 +200,16 @@ bool SpectrumBroadcaster::broadcastSpectrum(const float* magnitudes, int numBins
     packet.sampleRate = sampleRate;
 
     // Compress spectrum (downsample and quantize)
-    int outputBins = std::min(numBins, MAX_SPECTRUM_BINS);
+    int outputBins = juce::jmin(numBins, MAX_SPECTRUM_BINS);
     packet.numBins = static_cast<uint16_t>(outputBins);
     compressSpectrum(magnitudes, numBins, packet.magnitudes, outputBins);
 
     // Send packet
-    ssize_t bytesSent =
+    int bytesSent =
         sendto(sendSocket, reinterpret_cast<const char*>(&packet), sizeof(packet), 0,
                reinterpret_cast<struct sockaddr*>(&multicastAddr), sizeof(multicastAddr));
 
-    return bytesSent == sizeof(packet);
+    return bytesSent == static_cast<int>(sizeof(packet));
 }
 
 std::vector<SpectrumBroadcaster::RemoteSpectrum> SpectrumBroadcaster::getReceivedSpectrums() {
@@ -242,10 +242,10 @@ void SpectrumBroadcaster::receiverThreadRun() {
         }
 
         // Receive packet (blocking with timeout)
-        ssize_t bytesReceived =
+        int bytesReceived =
             recvfrom(recvSocket, reinterpret_cast<char*>(&packet), sizeof(packet), 0, nullptr, nullptr);
 
-        if (bytesReceived == sizeof(packet)) {
+        if (bytesReceived == static_cast<int>(sizeof(packet))) {
             // Validate packet
             if (packet.magic != PROTOCOL_MAGIC || packet.version != PROTOCOL_VERSION) {
                 continue; // Invalid packet
@@ -295,7 +295,7 @@ void SpectrumBroadcaster::compressSpectrum(const float* input, int inputBins, ui
             float start = static_cast<float>(i) * binRatio;
             float end = static_cast<float>(i + 1) * binRatio;
             int startBin = static_cast<int>(start);
-            int endBin = std::min(static_cast<int>(std::ceil(end)), inputBins);
+            int endBin = juce::jmin(static_cast<int>(std::ceil(end)), inputBins);
 
             // Average bins in this range
             float sum = 0.0f;
