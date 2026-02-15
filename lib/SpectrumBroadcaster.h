@@ -1,10 +1,10 @@
 #pragma once
 
-#include <array>
 #include <atomic>
 #include <cstdint>
-#include <juce_core/juce_core.h>
+#include <map>
 #include <memory>
+#include <mutex>
 #include <thread>
 #include <vector>
 
@@ -19,47 +19,69 @@
  * SpectrumBroadcaster: UDP multicast broadcaster/receiver for sharing
  * frequency spectrum data between plugin instances in a DAW project.
  *
+ * Architecture:
+ * - Sender: called from a timer thread, compresses spectrum to dB-domain
+ *   8-bit quantization and multicasts via UDP.
+ * - Receiver: dedicated background thread receives packets, decompresses,
+ *   and stores the latest spectrum per remote instance in a mutex-protected map.
+ * - Reader: UI thread calls getReceivedSpectrums() to get a snapshot of all
+ *   currently active remote instances' spectrums.
+ *
  * Features:
  * - Non-blocking UDP multicast (IPv4)
- * - Lock-free FIFO for thread-safe communication
+ * - Mutex-protected map for reliable per-instance latest spectrum
  * - Automatic instance ID generation
  * - Configurable broadcast rate throttling
- * - Compressed spectrum data (8-bit quantization)
+ * - dB-domain 8-bit quantization (80 dB dynamic range preserved)
+ * - Automatic staleness pruning (instances silent > 3s are removed)
  *
- * Usage:
- *   SpectrumBroadcaster broadcaster;
- *   broadcaster.initialize();
- *   broadcaster.broadcastSpectrum(magnitudes, numBins, sampleRate);
- *   auto remoteSpectrums = broadcaster.getReceivedSpectrums();
+ * Thread safety:
+ * - broadcastSpectrum() is safe to call from any single thread (timer/UI)
+ * - getReceivedSpectrums() is safe to call from any thread
+ * - Receiver thread is managed internally
  */
 class SpectrumBroadcaster {
   public:
-    // Multicast group and port
+    /** Multicast group address (administratively scoped, local org). */
     static constexpr const char* MULTICAST_GROUP = "239.255.42.1";
+
+    /** UDP port for spectrum multicasts. */
     static constexpr int MULTICAST_PORT = 49421;
 
-    // Maximum spectrum bins to transmit (compression)
+    /** Maximum spectrum bins to transmit per packet. */
     static constexpr int MAX_SPECTRUM_BINS = 512;
+
+    /** dB range for quantization. Values below this floor are silent. */
+    static constexpr float DB_FLOOR = -80.0f;
+
+    /** dB ceiling for quantization. */
+    static constexpr float DB_CEILING = 0.0f;
+
+    /** Time in milliseconds after which a remote instance is considered stale. */
+    static constexpr int64_t STALE_TIMEOUT_MS = 3000;
 
     // Spectrum packet structure (packed for network transmission)
     #pragma pack(push, 1)
     struct SpectrumPacket {
         uint32_t magic;        // Protocol magic number: 0x53504543 ("SPEC")
-        uint32_t version;      // Protocol version: 1
+        uint32_t version;      // Protocol version: 2
         uint32_t instanceID;   // Unique instance identifier
         uint64_t timestamp;    // Timestamp in milliseconds
         uint16_t numBins;      // Number of spectrum bins (up to MAX_SPECTRUM_BINS)
         float sampleRate;      // Sample rate for frequency mapping
-        uint8_t magnitudes[MAX_SPECTRUM_BINS]; // Quantized magnitudes (0-255)
+        uint8_t magnitudes[MAX_SPECTRUM_BINS]; // dB-quantized magnitudes (0-255)
     };
     #pragma pack(pop)
 
-    // Received spectrum data (unpacked for rendering)
+    /**
+     * Received spectrum data from a remote plugin instance (unpacked for rendering).
+     * Magnitudes are in linear scale, suitable for direct dB conversion in the renderer.
+     */
     struct RemoteSpectrum {
-        uint32_t instanceID;
-        uint64_t timestamp;
-        float sampleRate;
-        std::vector<float> magnitudes; // Dequantized to float
+        uint32_t instanceID = 0;
+        int64_t timestamp = 0;
+        float sampleRate = 0.0f;
+        std::vector<float> magnitudes; ///< Linear-scale magnitudes (same domain as FFTProcessor output)
     };
 
     SpectrumBroadcaster();
@@ -70,68 +92,64 @@ class SpectrumBroadcaster {
     SpectrumBroadcaster& operator=(const SpectrumBroadcaster&) = delete;
 
     /**
-     * Initialize networking (sockets, multicast group)
+     * Initialize networking (sockets, multicast group membership).
+     * Safe to call multiple times (returns true if already initialized).
      * @return true if successful, false on error
      */
     bool initialize();
 
     /**
-     * Shutdown networking and clean up resources
+     * Shutdown networking and clean up resources.
+     * Blocks until receiver thread has stopped.
      */
     void shutdown();
 
-    /**
-     * Check if broadcaster is initialized and running
-     */
+    /** Check if broadcaster is initialized and receiver thread is running. */
     bool isRunning() const { return running.load(); }
 
-    /**
-     * Get this instance's unique ID
-     */
+    /** Get this instance's unique ID (randomly generated on construction). */
     uint32_t getInstanceID() const { return instanceID; }
 
-    /**
-     * Enable or disable broadcasting (default: enabled)
-     */
+    /** Enable or disable broadcasting (default: enabled after initialize). */
     void setBroadcastEnabled(bool enabled) { broadcastEnabled.store(enabled); }
 
-    /**
-     * Enable or disable receiving (default: enabled)
-     */
+    /** Enable or disable receiving (default: enabled after initialize). */
     void setReceiveEnabled(bool enabled) { receiveEnabled.store(enabled); }
 
     /**
-     * Set minimum interval between broadcasts (throttling)
+     * Set minimum interval between broadcasts (throttling).
      * @param intervalMs Minimum milliseconds between broadcasts (default: 33ms = ~30Hz)
      */
     void setBroadcastInterval(int intervalMs) { minBroadcastIntervalMs = intervalMs; }
 
     /**
-     * Broadcast spectrum data to all instances
-     * @param magnitudes Magnitude spectrum array (linear scale)
+     * Broadcast spectrum data to all instances on the multicast group.
+     * Magnitudes are compressed to dB-domain 8-bit quantization before sending.
+     *
+     * @param magnitudes Magnitude spectrum array (linear scale, same as FFTProcessor output)
      * @param numBins Number of bins in the magnitude array
-     * @param sampleRate Sample rate for frequency mapping
+     * @param sampleRate Sample rate for frequency mapping on the receiver side
      * @return true if broadcast succeeded, false if throttled or error
      */
     bool broadcastSpectrum(const float* magnitudes, int numBins, float sampleRate);
 
     /**
-     * Get all received spectrums since last call (consumes queue)
-     * Called from UI thread to retrieve remote instance data
-     * @return Vector of received spectrum data
+     * Get latest received spectrum for each active remote instance.
+     * Returns a snapshot — does not drain a queue. Stale entries (> STALE_TIMEOUT_MS)
+     * are automatically pruned.
+     *
+     * @return Vector of the latest spectrum per remote instance
      */
     std::vector<RemoteSpectrum> getReceivedSpectrums();
 
-    /**
-     * Get number of remote spectrums currently in receive queue
-     */
-    int getNumReceivedSpectrums() const { return receiveFifo.getNumReady(); }
+    /** Get number of currently active remote instances. */
+    int getNumRemoteInstances() const;
 
   private:
     // Network state
     socket_t sendSocket;
     socket_t recvSocket;
-    void* multicastAddr; // sockaddr_in* (opaque pointer to avoid including socket headers)
+    void* multicastAddr; ///< sockaddr_in* (opaque pointer to avoid platform headers in .h)
     bool networkInitialized;
 
     // Instance identification
@@ -147,10 +165,10 @@ class SpectrumBroadcaster {
     int minBroadcastIntervalMs = 33; // ~30 Hz default
     int64_t lastBroadcastTime = 0;
 
-    // Lock-free FIFO for received spectrums (receiver thread -> UI thread)
-    static constexpr int FIFO_SIZE = 32;
-    juce::AbstractFifo receiveFifo{FIFO_SIZE};
-    std::array<RemoteSpectrum, FIFO_SIZE> spectrumBuffer;
+    // Mutex-protected map: latest spectrum per remote instance ID.
+    // The receiver thread writes, the UI thread reads via getReceivedSpectrums().
+    mutable std::mutex receiveMutex;
+    std::map<uint32_t, RemoteSpectrum> latestSpectrums;
 
     // Receiver thread function
     void receiverThreadRun();
@@ -159,14 +177,21 @@ class SpectrumBroadcaster {
     bool initializeSockets();
     void cleanupSockets();
     uint32_t generateInstanceID();
-    int64_t getCurrentTimeMs() const;
+    static int64_t getCurrentTimeMs();
 
-    // Spectrum compression/decompression
+    /**
+     * Compress linear magnitudes to dB-domain 8-bit quantization.
+     * Maps [DB_FLOOR, DB_CEILING] dB to [0, 255]. Values below DB_FLOOR become 0.
+     */
     void compressSpectrum(const float* input, int inputBins, uint8_t* output, int outputBins);
+
+    /**
+     * Decompress 8-bit dB-quantized values back to linear magnitudes.
+     */
     void decompressSpectrum(const uint8_t* input, int numBins, std::vector<float>& output);
 
 #ifdef _WIN32
-    // Windows-specific: WSA initialization
+    // Windows-specific: WSA initialization (reference-counted, shared across instances)
     static bool wsaInitialized;
     static int wsaRefCount;
     static std::mutex wsaMutex;

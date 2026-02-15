@@ -332,14 +332,14 @@ void CrossoverFrequencyBar::paint(juce::Graphics& g) {
         drawSpectrum(g, bar, inputFFTProcessor, 1.0f, juce::Colour(0x80FFFFFF));
     }
     
-    // Remote FFTs: thin colored lines for each remote instance
+    // Remote FFTs: bright colored lines for each remote instance
     if (remoteFFTEnabled && !remoteSpectrums.empty()) {
         // Use different colors for each remote instance (cycle through hues)
         const float hueStep = 360.0f / 12.0f; // 12 distinct colors
         for (size_t i = 0; i < remoteSpectrums.size(); ++i) {
             float hue = std::fmod(static_cast<float>(remoteSpectrums[i].instanceID % 12) * hueStep, 360.0f);
-            juce::Colour remoteColour = juce::Colour::fromHSV(hue / 360.0f, 0.7f, 0.9f, 0.5f);
-            drawRemoteSpectrum(g, bar, remoteSpectrums[i], 1.5f, remoteColour);
+            juce::Colour remoteColour = juce::Colour::fromHSV(hue / 360.0f, 0.9f, 1.0f, 0.85f);
+            drawRemoteSpectrum(g, bar, remoteSpectrums[i], 2.5f, remoteColour);
         }
     }
 

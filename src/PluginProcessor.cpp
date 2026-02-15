@@ -47,6 +47,9 @@ PhuSplitterAudioProcessor::PhuSplitterAudioProcessor()
 }
 
 PhuSplitterAudioProcessor::~PhuSplitterAudioProcessor() {
+    // Stop broadcast timer and shutdown broadcaster
+    stopTimer();
+    m_spectrumBroadcaster.shutdown();
 }
 
 void PhuSplitterAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
@@ -56,6 +59,7 @@ void PhuSplitterAudioProcessor::prepareToPlay(double sampleRate, int samplesPerB
     // Reset spectrum display FIFOs on playback restart / sample rate change
     m_inputFifo.reset();
     m_outputSumFifo.reset();
+    m_broadcastFifo.reset();
 
     // Read current crossover frequencies from parameters
     for (size_t i = 0; i < NUM_CROSSOVER_FREQS; ++i)
@@ -217,6 +221,12 @@ void PhuSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         m_outputSumFifo.push(sumChannels, samplesToProcess);
     }
 
+    // Push stereo output sum into broadcast FIFO (for headless broadcast FFT)
+    if (m_broadcastEnabled.load()) {
+        const float* sumChannels[2] = { m_sumL.data(), m_sumR.data() };
+        m_broadcastFifo.push(sumChannels, samplesToProcess);
+    }
+
     // Mark end of processing
     syncGlobals.finishRun(buffer.getNumSamples());
 }
@@ -290,13 +300,21 @@ void PhuSplitterAudioProcessor::changeProgramName(int, const juce::String&) {
 void PhuSplitterAudioProcessor::getStateInformation(juce::MemoryBlock& destData) {
     auto state = apvts.copyState();
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
+    // Persist broadcast enabled state as attribute on root element
+    xml->setAttribute("broadcastEnabled", m_broadcastEnabled.load());
     copyXmlToBinary(*xml, destData);
 }
 
 void PhuSplitterAudioProcessor::setStateInformation(const void* data, int sizeInBytes) {
     std::unique_ptr<juce::XmlElement> xml(getXmlFromBinary(data, sizeInBytes));
-    if (xml && xml->hasTagName(apvts.state.getType()))
+    if (xml && xml->hasTagName(apvts.state.getType())) {
         apvts.replaceState(juce::ValueTree::fromXml(*xml));
+        // Restore broadcast enabled state
+        bool wasBroadcasting = xml->getBoolAttribute("broadcastEnabled", false);
+        if (wasBroadcasting) {
+            setBroadcastEnabled(true);
+        }
+    }
 }
 
 // ============================================================================
@@ -439,4 +457,41 @@ void PhuSplitterAudioProcessor::setBandMute(size_t bandIndex, bool mute) {
 // This creates new instances of the plugin
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
     return new PhuSplitterAudioProcessor();
+}
+
+// ============================================================================
+// Spectrum broadcasting
+// ============================================================================
+
+void PhuSplitterAudioProcessor::setBroadcastEnabled(bool enabled) {
+    if (enabled == m_broadcastEnabled.load())
+        return;
+
+    if (enabled) {
+        if (m_spectrumBroadcaster.initialize()) {
+            m_spectrumBroadcaster.setBroadcastEnabled(true);
+            m_spectrumBroadcaster.setReceiveEnabled(true);
+            m_broadcastEnabled.store(true);
+            m_broadcastFifo.reset();
+            startTimerHz(30); // 30 Hz broadcast FFT processing
+        }
+    } else {
+        m_broadcastEnabled.store(false);
+        stopTimer();
+        m_spectrumBroadcaster.shutdown();
+    }
+}
+
+void PhuSplitterAudioProcessor::timerCallback() {
+    // Process broadcast FFT from dedicated FIFO
+    m_broadcastFFT.process(m_broadcastFifo);
+
+    // Broadcast computed spectrum
+    const float* magnitudes = m_broadcastFFT.getMagnitudeSpectrum();
+    int numBins = m_broadcastFFT.getNumBins();
+    float sampleRate = static_cast<float>(getSampleRate());
+
+    if (numBins > 0 && sampleRate > 0.0f) {
+        m_spectrumBroadcaster.broadcastSpectrum(magnitudes, numBins, sampleRate);
+    }
 }

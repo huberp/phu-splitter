@@ -119,29 +119,18 @@ PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudi
     addAndMakeVisible(broadcastLabel);
 
     broadcastToggle.setButtonText("Broadcast Spectrum");
-    broadcastToggle.setToggleState(false, juce::dontSendNotification);
+    broadcastToggle.setToggleState(audioProcessor.isBroadcastEnabled(), juce::dontSendNotification);
     broadcastToggle.onClick = [this]() {
         bool enabled = broadcastToggle.getToggleState();
+        audioProcessor.setBroadcastEnabled(enabled);
+#ifndef NDEBUG
         if (enabled) {
-            if (spectrumBroadcaster.initialize()) {
-                spectrumBroadcaster.setBroadcastEnabled(true);
-                spectrumBroadcaster.setReceiveEnabled(true);
-#ifndef NDEBUG
-                addLogMessage("Spectrum broadcasting initialized (ID: " + 
-                             juce::String(spectrumBroadcaster.getInstanceID()) + ")");
-#endif
-            } else {
-                broadcastToggle.setToggleState(false, juce::dontSendNotification);
-#ifndef NDEBUG
-                addLogMessage("Failed to initialize spectrum broadcasting");
-#endif
-            }
+            addLogMessage("Spectrum broadcasting enabled (ID: " + 
+                         juce::String(audioProcessor.getSpectrumBroadcaster().getInstanceID()) + ")");
         } else {
-            spectrumBroadcaster.shutdown();
-#ifndef NDEBUG
             addLogMessage("Spectrum broadcasting disabled");
-#endif
         }
+#endif
     };
     addAndMakeVisible(broadcastToggle);
 
@@ -195,8 +184,7 @@ PhuSplitterAudioProcessorEditor::~PhuSplitterAudioProcessorEditor() {
     // Stop FFT timer
     stopTimer();
 
-    // Shutdown broadcaster
-    spectrumBroadcaster.shutdown();
+    // Broadcaster is owned by processor — do NOT shutdown here
 
 #ifndef NDEBUG // Debug builds only
     // Unregister from logger
@@ -290,18 +278,12 @@ void PhuSplitterAudioProcessorEditor::timerCallback() {
     if (outputFFTToggle.getToggleState())
         outputSumFFT.process(audioProcessor.getOutputSumFifo());
 
-    // Broadcast local spectrum if enabled
-    if (spectrumBroadcaster.isRunning() && outputFFTToggle.getToggleState()) {
-        const float* magnitudes = outputSumFFT.getMagnitudeSpectrum();
-        int numBins = outputSumFFT.getNumBins();
-        float sampleRate = static_cast<float>(audioProcessor.getSampleRate());
-        
-        spectrumBroadcaster.broadcastSpectrum(magnitudes, numBins, sampleRate);
-    }
+    // Broadcast is now handled by the processor's timer — no broadcast logic here.
 
-    // Receive remote spectrums
-    if (spectrumBroadcaster.isRunning() && remoteFFTToggle.getToggleState()) {
-        auto remoteSpectrums = spectrumBroadcaster.getReceivedSpectrums();
+    // Receive remote spectrums from processor's broadcaster
+    auto& broadcaster = audioProcessor.getSpectrumBroadcaster();
+    if (broadcaster.isRunning() && remoteFFTToggle.getToggleState()) {
+        auto remoteSpectrums = broadcaster.getReceivedSpectrums();
         crossoverBar.setRemoteSpectrums(remoteSpectrums);
     } else {
         crossoverBar.setRemoteSpectrums({});

@@ -1,6 +1,8 @@
 #pragma once
 
 #include "../lib/AudioSampleFifo.h"
+#include "../lib/FFTProcessor.h"
+#include "../lib/SpectrumBroadcaster.h"
 #include "../lib/SyncGlobals.h"
 #include "LinkwitzRileyFilter.h"
 #include <array>
@@ -11,7 +13,9 @@
 class EditorLogger;
 #endif
 
-class PhuSplitterAudioProcessor : public juce::AudioProcessor, public GlobalsEventListener {
+class PhuSplitterAudioProcessor : public juce::AudioProcessor,
+                                  public GlobalsEventListener,
+                                  private juce::Timer {
   public:
     PhuSplitterAudioProcessor();
     ~PhuSplitterAudioProcessor() override;
@@ -96,7 +100,14 @@ class PhuSplitterAudioProcessor : public juce::AudioProcessor, public GlobalsEve
     AudioSampleFifo<2>& getInputFifo() { return m_inputFifo; }
     AudioSampleFifo<2>& getOutputSumFifo() { return m_outputSumFifo; }
 
+    // Spectrum broadcasting (owned by processor for headless operation)
+    SpectrumBroadcaster& getSpectrumBroadcaster() { return m_spectrumBroadcaster; }
+    bool isBroadcastEnabled() const { return m_broadcastEnabled.load(); }
+    void setBroadcastEnabled(bool enabled);
+
   private:
+    // Timer callback drives broadcast FFT + spectrum sending (runs even when editor is closed)
+    void timerCallback() override;
     // Create parameter layout for APVTS
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     // DAW synchronization globals (each instance has its own)
@@ -134,6 +145,12 @@ class PhuSplitterAudioProcessor : public juce::AudioProcessor, public GlobalsEve
     // Lock-free FIFOs for transferring audio samples to UI thread (spectrum display)
     AudioSampleFifo<2> m_inputFifo;
     AudioSampleFifo<2> m_outputSumFifo;
+
+    // Spectrum broadcasting (lives in processor so broadcast continues when editor is closed)
+    SpectrumBroadcaster m_spectrumBroadcaster;
+    FFTProcessor m_broadcastFFT{12};            // Dedicated FFT for broadcast
+    AudioSampleFifo<2> m_broadcastFifo;          // Dedicated FIFO fed from processBlock
+    std::atomic<bool> m_broadcastEnabled{false}; // Persisted in state
 
     // Temp buffer for accumulating output sum per processBlock
     // Max expected host buffer size; if larger, we process in chunks
