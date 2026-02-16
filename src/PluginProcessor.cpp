@@ -47,8 +47,10 @@ PhuSplitterAudioProcessor::PhuSplitterAudioProcessor()
 }
 
 PhuSplitterAudioProcessor::~PhuSplitterAudioProcessor() {
-    // Stop broadcast timer and shutdown broadcaster
+    // Stop broadcast timer and shutdown broadcasters
     stopTimer();
+    m_commandBroadcaster.removeListener(this);
+    m_commandBroadcaster.shutdown();
     m_spectrumBroadcaster.shutdown();
 }
 
@@ -475,10 +477,61 @@ void PhuSplitterAudioProcessor::setBroadcastEnabled(bool enabled) {
             m_broadcastFifo.reset();
             startTimerHz(30); // 30 Hz broadcast FFT processing
         }
+        // Initialize command broadcaster alongside spectrum broadcaster
+        if (m_commandBroadcaster.initialize()) {
+            m_commandBroadcaster.addListener(this);
+        }
     } else {
         m_broadcastEnabled.store(false);
         stopTimer();
+        m_commandBroadcaster.removeListener(this);
+        m_commandBroadcaster.shutdown();
         m_spectrumBroadcaster.shutdown();
+    }
+}
+
+// ============================================================================
+// Command broadcasting
+// ============================================================================
+
+void PhuSplitterAudioProcessor::broadcastSoloCommand(size_t bandIndex, bool solo) {
+    if (bandIndex >= NUM_BANDS)
+        return;
+    m_commandBroadcaster.sendSoloCommand(static_cast<uint8_t>(bandIndex), solo);
+}
+
+void PhuSplitterAudioProcessor::broadcastMuteCommand(size_t bandIndex, bool mute) {
+    if (bandIndex >= NUM_BANDS)
+        return;
+    m_commandBroadcaster.sendMuteCommand(static_cast<uint8_t>(bandIndex), mute);
+}
+
+void PhuSplitterAudioProcessor::onCommandReceived(CommandType commandType,
+                                                  uint32_t /*senderID*/,
+                                                  const std::string& /*targetGroup*/,
+                                                  const uint8_t* payload,
+                                                  uint16_t payloadSize) {
+    // Dispatch received commands — called on receiver background thread.
+    // setBandSolo/setBandMute use setValueNotifyingHost which is thread-safe.
+    switch (commandType) {
+        case CommandType::Solo: {
+            if (payloadSize >= sizeof(SoloMutePayload)) {
+                auto p = reinterpret_cast<const SoloMutePayload*>(payload);
+                if (p->bandIndex < NUM_BANDS)
+                    setBandSolo(p->bandIndex, p->state != 0);
+            }
+            break;
+        }
+        case CommandType::Mute: {
+            if (payloadSize >= sizeof(SoloMutePayload)) {
+                auto p = reinterpret_cast<const SoloMutePayload*>(payload);
+                if (p->bandIndex < NUM_BANDS)
+                    setBandMute(p->bandIndex, p->state != 0);
+            }
+            break;
+        }
+        default:
+            break; // Unknown command — ignore
     }
 }
 

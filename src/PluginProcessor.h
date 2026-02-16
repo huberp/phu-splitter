@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../lib/AudioSampleFifo.h"
+#include "../lib/CommandBroadcaster.h"
 #include "../lib/FFTProcessor.h"
 #include "../lib/SpectrumBroadcaster.h"
 #include "../lib/SyncGlobals.h"
@@ -15,6 +16,7 @@ class EditorLogger;
 
 class PhuSplitterAudioProcessor : public juce::AudioProcessor,
                                   public GlobalsEventListener,
+                                  public CommandListener,
                                   private juce::Timer {
   public:
     PhuSplitterAudioProcessor();
@@ -105,6 +107,22 @@ class PhuSplitterAudioProcessor : public juce::AudioProcessor,
     bool isBroadcastEnabled() const { return m_broadcastEnabled.load(); }
     void setBroadcastEnabled(bool enabled);
 
+    // Command broadcasting (owned by processor alongside spectrum broadcaster)
+    CommandBroadcaster& getCommandBroadcaster() { return m_commandBroadcaster; }
+
+    /** Broadcast a solo state change to all peers (called from Alt+Click). */
+    void broadcastSoloCommand(size_t bandIndex, bool solo);
+
+    /** Broadcast a mute state change to all peers (called from Alt+Click). */
+    void broadcastMuteCommand(size_t bandIndex, bool mute);
+
+    // CommandListener interface
+    void onCommandReceived(CommandType commandType,
+                           uint32_t senderID,
+                           const std::string& targetGroup,
+                           const uint8_t* payload,
+                           uint16_t payloadSize) override;
+
   private:
     // Timer callback drives broadcast FFT + spectrum sending (runs even when editor is closed)
     void timerCallback() override;
@@ -151,6 +169,9 @@ class PhuSplitterAudioProcessor : public juce::AudioProcessor,
     FFTProcessor m_broadcastFFT{12};            // Dedicated FFT for broadcast
     AudioSampleFifo<2> m_broadcastFifo;          // Dedicated FIFO fed from processBlock
     std::atomic<bool> m_broadcastEnabled{false}; // Persisted in state
+
+    // Command broadcasting (lives in processor alongside spectrum broadcaster)
+    CommandBroadcaster m_commandBroadcaster;
 
     // Temp buffer for accumulating output sum per processBlock
     // Max expected host buffer size; if larger, we process in chunks

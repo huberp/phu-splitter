@@ -27,6 +27,8 @@ target_sources(phu-splitter PRIVATE
     LinkwitzRileyFilter.h
     ../lib/SpectrumBroadcaster.cpp
     ../lib/SpectrumBroadcaster.h
+    ../lib/CommandBroadcaster.cpp
+    ../lib/CommandBroadcaster.h
 )
 
 target_compile_definitions(phu-splitter PUBLIC
