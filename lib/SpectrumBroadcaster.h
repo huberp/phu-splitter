@@ -1,19 +1,11 @@
 #pragma once
 
-#include <atomic>
+#include "MulticastBroadcasterBase.h"
+
 #include <cstdint>
 #include <map>
-#include <memory>
 #include <mutex>
-#include <thread>
 #include <vector>
-
-// Forward declare socket type to avoid including Windows headers in header file
-#ifdef _WIN32
-    using socket_t = unsigned long long; // SOCKET type on Windows
-#else
-    using socket_t = int;
-#endif
 
 /**
  * SpectrumBroadcaster: UDP multicast broadcaster/receiver for sharing
@@ -40,7 +32,7 @@
  * - getReceivedSpectrums() is safe to call from any thread
  * - Receiver thread is managed internally
  */
-class SpectrumBroadcaster {
+class SpectrumBroadcaster : public MulticastBroadcasterBase {
   public:
     /** Multicast group address (administratively scoped, local org). */
     static constexpr const char* MULTICAST_GROUP = "239.255.42.1";
@@ -85,30 +77,11 @@ class SpectrumBroadcaster {
     };
 
     SpectrumBroadcaster();
-    ~SpectrumBroadcaster();
+    ~SpectrumBroadcaster() override = default;
 
     // Delete copy/move constructors
     SpectrumBroadcaster(const SpectrumBroadcaster&) = delete;
     SpectrumBroadcaster& operator=(const SpectrumBroadcaster&) = delete;
-
-    /**
-     * Initialize networking (sockets, multicast group membership).
-     * Safe to call multiple times (returns true if already initialized).
-     * @return true if successful, false on error
-     */
-    bool initialize();
-
-    /**
-     * Shutdown networking and clean up resources.
-     * Blocks until receiver thread has stopped.
-     */
-    void shutdown();
-
-    /** Check if broadcaster is initialized and receiver thread is running. */
-    bool isRunning() const { return running.load(); }
-
-    /** Get this instance's unique ID (randomly generated on construction). */
-    uint32_t getInstanceID() const { return instanceID; }
 
     /** Enable or disable broadcasting (default: enabled after initialize). */
     void setBroadcastEnabled(bool enabled) { broadcastEnabled.store(enabled); }
@@ -145,21 +118,15 @@ class SpectrumBroadcaster {
     /** Get number of currently active remote instances. */
     int getNumRemoteInstances() const;
 
+  protected:
+    // MulticastBroadcasterBase overrides
+    void receiverThreadRun() override;
+    void onShutdown() override;
+
   private:
-    // Network state
-    socket_t sendSocket;
-    socket_t recvSocket;
-    void* multicastAddr; ///< sockaddr_in* (opaque pointer to avoid platform headers in .h)
-    bool networkInitialized;
-
-    // Instance identification
-    uint32_t instanceID;
-
-    // Thread management
-    std::atomic<bool> running{false};
+    // Spectrum-specific state
     std::atomic<bool> broadcastEnabled{true};
     std::atomic<bool> receiveEnabled{true};
-    std::unique_ptr<std::thread> receiverThread;
 
     // Broadcast throttling
     int minBroadcastIntervalMs = 33; // ~30 Hz default
@@ -169,15 +136,6 @@ class SpectrumBroadcaster {
     // The receiver thread writes, the UI thread reads via getReceivedSpectrums().
     mutable std::mutex receiveMutex;
     std::map<uint32_t, RemoteSpectrum> latestSpectrums;
-
-    // Receiver thread function
-    void receiverThreadRun();
-
-    // Helper functions
-    bool initializeSockets();
-    void cleanupSockets();
-    uint32_t generateInstanceID();
-    static int64_t getCurrentTimeMs();
 
     /**
      * Compress linear magnitudes to dB-domain 8-bit quantization.
@@ -189,13 +147,4 @@ class SpectrumBroadcaster {
      * Decompress 8-bit dB-quantized values back to linear magnitudes.
      */
     void decompressSpectrum(const uint8_t* input, int numBins, std::vector<float>& output);
-
-#ifdef _WIN32
-    // Windows-specific: WSA initialization (reference-counted, shared across instances)
-    static bool wsaInitialized;
-    static int wsaRefCount;
-    static std::mutex wsaMutex;
-    bool initializeWSA();
-    void cleanupWSA();
-#endif
 };

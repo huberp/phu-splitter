@@ -1,220 +1,42 @@
 #include "SpectrumBroadcaster.h"
 
 #include <algorithm>
-#include <chrono>
 #include <cmath>
 #include <cstring>
-#include <random>
 
-// Include socket headers only in implementation file
+// Include socket headers only in implementation file (needed for sendto/recvfrom)
 #ifdef _WIN32
     #ifndef NOMINMAX
         #define NOMINMAX
     #endif
     #include <winsock2.h>
     #include <ws2tcpip.h>
-    #pragma comment(lib, "ws2_32.lib")
     #define INVALID_SOCKET_VALUE INVALID_SOCKET
-    #define SOCKET_ERROR_VALUE SOCKET_ERROR
 #else
     #include <arpa/inet.h>
     #include <netinet/in.h>
     #include <sys/socket.h>
-    #include <unistd.h>
     #define INVALID_SOCKET_VALUE -1
-    #define SOCKET_ERROR_VALUE -1
-    #define closesocket close
 #endif
 
 // Protocol magic number: "SPEC" in ASCII
 static constexpr uint32_t PROTOCOL_MAGIC = 0x53504543;
 static constexpr uint32_t PROTOCOL_VERSION = 2;
 
-#ifdef _WIN32
-bool SpectrumBroadcaster::wsaInitialized = false;
-int SpectrumBroadcaster::wsaRefCount = 0;
-std::mutex SpectrumBroadcaster::wsaMutex;
-#endif
-
 // ============================================================================
-// Construction / Destruction
+// Construction
 // ============================================================================
 
 SpectrumBroadcaster::SpectrumBroadcaster()
-    : sendSocket(INVALID_SOCKET_VALUE), recvSocket(INVALID_SOCKET_VALUE),
-      multicastAddr(nullptr), networkInitialized(false), instanceID(0) {
-    // Allocate multicast address structure (hidden behind void* in header)
-    multicastAddr = new sockaddr_in();
-    std::memset(multicastAddr, 0, sizeof(sockaddr_in));
-
-    // Generate unique instance ID
-    instanceID = generateInstanceID();
-}
-
-SpectrumBroadcaster::~SpectrumBroadcaster() {
-    shutdown();
-
-    // Free multicast address structure
-    if (multicastAddr) {
-        delete static_cast<sockaddr_in*>(multicastAddr);
-        multicastAddr = nullptr;
-    }
-}
+    : MulticastBroadcasterBase(MULTICAST_GROUP, MULTICAST_PORT) {}
 
 // ============================================================================
-// Lifecycle
+// Shutdown hook
 // ============================================================================
 
-bool SpectrumBroadcaster::initialize() {
-    if (networkInitialized) {
-        return true; // Already initialized
-    }
-
-#ifdef _WIN32
-    if (!initializeWSA()) {
-        return false;
-    }
-#endif
-
-    if (!initializeSockets()) {
-        shutdown();
-        return false;
-    }
-
-    // Start receiver thread
-    running.store(true);
-    receiverThread = std::make_unique<std::thread>(&SpectrumBroadcaster::receiverThreadRun, this);
-
-    networkInitialized = true;
-    return true;
-}
-
-void SpectrumBroadcaster::shutdown() {
-    // Stop receiver thread
-    running.store(false);
-    if (receiverThread && receiverThread->joinable()) {
-        receiverThread->join();
-    }
-    receiverThread.reset();
-
-    // Cleanup sockets
-    cleanupSockets();
-
-#ifdef _WIN32
-    cleanupWSA();
-#endif
-
-    networkInitialized = false;
-
-    // Clear received spectrums
-    {
-        std::lock_guard<std::mutex> lock(receiveMutex);
-        latestSpectrums.clear();
-    }
-}
-
-// ============================================================================
-// Socket Setup
-// ============================================================================
-
-bool SpectrumBroadcaster::initializeSockets() {
-    // Create sending socket
-    sendSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (sendSocket == INVALID_SOCKET_VALUE) {
-        return false;
-    }
-
-    // Set up multicast address
-    auto* addr = static_cast<sockaddr_in*>(multicastAddr);
-    std::memset(addr, 0, sizeof(sockaddr_in));
-    addr->sin_family = AF_INET;
-    addr->sin_port = htons(MULTICAST_PORT);
-    inet_pton(AF_INET, MULTICAST_GROUP, &addr->sin_addr);
-
-    // Enable multicast loopback (receive our own packets — filtered by instanceID)
-    int loopback = 1;
-    setsockopt(sendSocket, IPPROTO_IP, IP_MULTICAST_LOOP,
-               reinterpret_cast<const char*>(&loopback), sizeof(loopback));
-
-    // Set multicast TTL (1 = local network only)
-    int ttl = 1;
-    setsockopt(sendSocket, IPPROTO_IP, IP_MULTICAST_TTL,
-               reinterpret_cast<const char*>(&ttl), sizeof(ttl));
-
-    // Create receiving socket
-    recvSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (recvSocket == INVALID_SOCKET_VALUE) {
-        closesocket(sendSocket);
-        sendSocket = INVALID_SOCKET_VALUE;
-        return false;
-    }
-
-    // Enable address reuse (multiple instances on same machine)
-    int reuse = 1;
-    setsockopt(recvSocket, SOL_SOCKET, SO_REUSEADDR,
-               reinterpret_cast<const char*>(&reuse), sizeof(reuse));
-
-#ifdef SO_REUSEPORT
-    // On Unix-like systems, also set SO_REUSEPORT
-    setsockopt(recvSocket, SOL_SOCKET, SO_REUSEPORT,
-               reinterpret_cast<const char*>(&reuse), sizeof(reuse));
-#endif
-
-    // Bind to multicast port
-    struct sockaddr_in bindAddr;
-    std::memset(&bindAddr, 0, sizeof(bindAddr));
-    bindAddr.sin_family = AF_INET;
-    bindAddr.sin_port = htons(MULTICAST_PORT);
-    bindAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-
-    if (bind(recvSocket, reinterpret_cast<struct sockaddr*>(&bindAddr), sizeof(bindAddr)) ==
-        SOCKET_ERROR_VALUE) {
-        closesocket(sendSocket);
-        closesocket(recvSocket);
-        sendSocket = INVALID_SOCKET_VALUE;
-        recvSocket = INVALID_SOCKET_VALUE;
-        return false;
-    }
-
-    // Join multicast group
-    struct ip_mreq mreq;
-    inet_pton(AF_INET, MULTICAST_GROUP, &mreq.imr_multiaddr);
-    mreq.imr_interface.s_addr = htonl(INADDR_ANY);
-
-    if (setsockopt(recvSocket, IPPROTO_IP, IP_ADD_MEMBERSHIP,
-                   reinterpret_cast<const char*>(&mreq), sizeof(mreq)) == SOCKET_ERROR_VALUE) {
-        closesocket(sendSocket);
-        closesocket(recvSocket);
-        sendSocket = INVALID_SOCKET_VALUE;
-        recvSocket = INVALID_SOCKET_VALUE;
-        return false;
-    }
-
-    // Set receive timeout (100ms) to allow periodic checking of the running flag
-#ifdef _WIN32
-    DWORD timeout = 100;
-    setsockopt(recvSocket, SOL_SOCKET, SO_RCVTIMEO,
-               reinterpret_cast<const char*>(&timeout), sizeof(timeout));
-#else
-    struct timeval tv;
-    tv.tv_sec = 0;
-    tv.tv_usec = 100000; // 100ms
-    setsockopt(recvSocket, SOL_SOCKET, SO_RCVTIMEO,
-               reinterpret_cast<const char*>(&tv), sizeof(tv));
-#endif
-
-    return true;
-}
-
-void SpectrumBroadcaster::cleanupSockets() {
-    if (sendSocket != INVALID_SOCKET_VALUE) {
-        closesocket(sendSocket);
-        sendSocket = INVALID_SOCKET_VALUE;
-    }
-    if (recvSocket != INVALID_SOCKET_VALUE) {
-        closesocket(recvSocket);
-        recvSocket = INVALID_SOCKET_VALUE;
-    }
+void SpectrumBroadcaster::onShutdown() {
+    std::lock_guard<std::mutex> lock(receiveMutex);
+    latestSpectrums.clear();
 }
 
 // ============================================================================
@@ -392,47 +214,3 @@ void SpectrumBroadcaster::decompressSpectrum(const uint8_t* input, int numBins,
         output[i] = std::pow(10.0f, dB / 20.0f);                  // Back to linear
     }
 }
-
-// ============================================================================
-// Helpers
-// ============================================================================
-
-uint32_t SpectrumBroadcaster::generateInstanceID() {
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<uint32_t> dis;
-    return dis(gen);
-}
-
-int64_t SpectrumBroadcaster::getCurrentTimeMs() {
-    using namespace std::chrono;
-    return duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
-}
-
-// ============================================================================
-// Windows-specific WSA initialization
-// ============================================================================
-
-#ifdef _WIN32
-bool SpectrumBroadcaster::initializeWSA() {
-    std::lock_guard<std::mutex> lock(wsaMutex);
-    if (!wsaInitialized) {
-        WSADATA wsaData;
-        int result = WSAStartup(MAKEWORD(2, 2), &wsaData);
-        if (result != 0) {
-            return false;
-        }
-        wsaInitialized = true;
-    }
-    ++wsaRefCount;
-    return true;
-}
-
-void SpectrumBroadcaster::cleanupWSA() {
-    std::lock_guard<std::mutex> lock(wsaMutex);
-    if (wsaInitialized && --wsaRefCount == 0) {
-        WSACleanup();
-        wsaInitialized = false;
-    }
-}
-#endif

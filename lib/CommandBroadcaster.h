@@ -1,21 +1,13 @@
 #pragma once
 
-#include <atomic>
+#include "MulticastBroadcasterBase.h"
+
 #include <cstdint>
 #include <cstring>
 #include <functional>
-#include <memory>
 #include <mutex>
 #include <string>
-#include <thread>
 #include <vector>
-
-// Forward declare socket type to avoid including Windows headers in header file
-#ifdef _WIN32
-    using cmd_socket_t = unsigned long long; // SOCKET type on Windows
-#else
-    using cmd_socket_t = int;
-#endif
 
 // ============================================================================
 // Command Types
@@ -128,7 +120,7 @@ class CommandListener {
  * - The receiver thread dispatches to CommandListener objects; listeners must
  *   be thread-safe or marshal internally.
  */
-class CommandBroadcaster {
+class CommandBroadcaster : public MulticastBroadcasterBase {
   public:
     /** Uses the same multicast group as SpectrumBroadcaster. */
     static constexpr const char* MULTICAST_GROUP = "239.255.42.1";
@@ -137,28 +129,11 @@ class CommandBroadcaster {
     static constexpr int MULTICAST_PORT = 49422;
 
     CommandBroadcaster();
-    ~CommandBroadcaster();
+    ~CommandBroadcaster() override = default;
 
     // Non-copyable / non-movable
     CommandBroadcaster(const CommandBroadcaster&) = delete;
     CommandBroadcaster& operator=(const CommandBroadcaster&) = delete;
-
-    // ---- Lifecycle --------------------------------------------------------
-
-    /**
-     * Initialize networking (sockets, multicast group membership).
-     * Safe to call multiple times (returns true if already initialized).
-     */
-    bool initialize();
-
-    /** Shutdown networking, stop receiver thread. */
-    void shutdown();
-
-    /** Whether the broadcaster is initialized and the receiver thread running. */
-    bool isRunning() const { return running.load(); }
-
-    /** This instance's unique ID. */
-    uint32_t getInstanceID() const { return instanceID; }
 
     // ---- Sending ----------------------------------------------------------
 
@@ -197,41 +172,15 @@ class CommandBroadcaster {
     void setOwnGroup(const std::string& group) { ownGroup = group; }
     const std::string& getOwnGroup() const { return ownGroup; }
 
+  protected:
+    // MulticastBroadcasterBase overrides
+    void receiverThreadRun() override;
+
   private:
-    // Network state
-    cmd_socket_t sendSocket;
-    cmd_socket_t recvSocket;
-    void* multicastAddr;     ///< sockaddr_in* (opaque pointer to avoid platform headers)
-    bool networkInitialized;
-
-    // Instance identification
-    uint32_t instanceID;
-
     // Peer group this instance belongs to (default "all")
     std::string ownGroup{"all"};
-
-    // Thread management
-    std::atomic<bool> running{false};
-    std::unique_ptr<std::thread> receiverThread;
 
     // Listeners
     std::mutex listenerMutex;
     std::vector<CommandListener*> listeners;
-
-    // Receiver thread function
-    void receiverThreadRun();
-
-    // Socket helpers
-    bool initializeSockets();
-    void cleanupSockets();
-    uint32_t generateInstanceID();
-    static int64_t getCurrentTimeMs();
-
-#ifdef _WIN32
-    static bool wsaInitialized;
-    static int wsaRefCount;
-    static std::mutex wsaMutex;
-    bool initializeWSA();
-    void cleanupWSA();
-#endif
 };

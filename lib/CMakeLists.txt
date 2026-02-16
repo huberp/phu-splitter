@@ -13,6 +13,7 @@ target_sources(EventSystem INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/NoteToFreq.h
     ${CMAKE_CURRENT_SOURCE_DIR}/AudioSampleFifo.h
     ${CMAKE_CURRENT_SOURCE_DIR}/FFTProcessor.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/MulticastBroadcasterBase.h
     ${CMAKE_CURRENT_SOURCE_DIR}/SpectrumBroadcaster.h
     ${CMAKE_CURRENT_SOURCE_DIR}/CommandBroadcaster.h
 )
