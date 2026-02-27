@@ -87,6 +87,11 @@ PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudi
     };
     addAndMakeVisible(freqSmoothSlider);
 
+    // Local FFT group
+    localFFTGroup.setText("Local Spectrum");
+    localFFTGroup.setTextLabelPosition(juce::Justification::centredLeft);
+    addAndMakeVisible(localFFTGroup);
+
     // FFT enable toggles
     inputFFTToggle.setButtonText("Input FFT");
     inputFFTToggle.setToggleState(false, juce::dontSendNotification);
@@ -103,6 +108,11 @@ PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudi
         crossoverBar.repaint();
     };
     addAndMakeVisible(outputFFTToggle);
+
+    // Remote FFT group
+    remoteFFTGroup.setText("Remote Spectrum");
+    remoteFFTGroup.setTextLabelPosition(juce::Justification::centredLeft);
+    addAndMakeVisible(remoteFFTGroup);
 
     remoteFFTToggle.setButtonText("Remote FFT");
     remoteFFTToggle.setToggleState(true, juce::dontSendNotification);
@@ -175,8 +185,8 @@ PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudi
     addLogMessage("PhuSplitter Debug Log initialized");
 #else
     // Smaller editor size for release builds (no debug log)
-    // Release build: height for all controls + FFT toggles + broadcast controls + margins
-    setSize(810, 450);
+    // Release build: height for all controls + FFT groups + margins
+    setSize(810, 505);
 #endif
 }
 
@@ -248,15 +258,32 @@ void PhuSplitterAudioProcessorEditor::resized() {
 
     area.removeFromTop(3);
 
-    // FFT enable toggles row
-    auto toggleRow = area.removeFromTop(22);
-    toggleRow.removeFromLeft(10);
-    remoteFFTToggle.setBounds(toggleRow.removeFromLeft(100));
+    // Local FFT toggles group (Input and Output side-by-side)
+    auto localFFTArea = area.removeFromTop(55);
+    localFFTGroup.setBounds(localFFTArea);
+    auto localFFTContent = localFFTArea.reduced(10, 18); // Leave room for border and title
+    
+    // Both toggles on same row: Output on left, Input on right
+    auto toggleRow = localFFTContent.removeFromTop(24);
+    outputFFTToggle.setBounds(toggleRow.removeFromLeft(120));
+    toggleRow.removeFromLeft(10); // Gap between toggles
+    inputFFTToggle.setBounds(toggleRow.removeFromLeft(120));
 
-    area.removeFromTop(3);
+    area.removeFromTop(8);
 
+    // Remote FFT and Broadcast group
+    auto remoteFFTArea = area.removeFromTop(105);
+    remoteFFTGroup.setBounds(remoteFFTArea);
+    auto remoteFFTContent = remoteFFTArea.reduced(10, 18); // Leave room for border and title
+    
+    // Remote FFT toggle
+    auto remoteFFTRow = remoteFFTContent.removeFromTop(22);
+    remoteFFTToggle.setBounds(remoteFFTRow.removeFromLeft(160));
+    
+    remoteFFTContent.removeFromTop(3);
+    
     // Broadcast control row
-    auto broadcastRow = area.removeFromTop(22);
+    auto broadcastRow = remoteFFTContent.removeFromTop(22);
     broadcastLabel.setBounds(broadcastRow.removeFromLeft(70));
     broadcastToggle.setBounds(broadcastRow.removeFromLeft(160));
 

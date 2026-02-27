@@ -58,8 +58,12 @@ class PhuSplitterAudioProcessorEditor : public juce::AudioProcessorEditor,
     juce::Label freqSmoothLabel;
 
     // FFT enable toggles
+    juce::GroupComponent localFFTGroup;
     juce::ToggleButton inputFFTToggle;
     juce::ToggleButton outputFFTToggle;
+    
+    // Remote spectrum controls
+    juce::GroupComponent remoteFFTGroup;
     juce::ToggleButton remoteFFTToggle;
     
     // Spectrum broadcast controls (broadcaster lives in processor)
