@@ -1,9 +1,12 @@
 #pragma once
 
-#include "../lib/FFTProcessor.h"
-#include "../lib/SpectrumBroadcaster.h"
+#include "../lib/audio/FFTProcessor.h"
+#include "../lib/network/SpectrumBroadcaster.h"
 #include <array>
 #include <juce_audio_processors/juce_audio_processors.h>
+
+using phu::audio::FFTProcessor;
+using phu::network::SpectrumBroadcaster;
 
 class PhuSplitterAudioProcessor;
 

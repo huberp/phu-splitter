@@ -9,6 +9,9 @@
 #include <string>
 #include <vector>
 
+namespace phu {
+namespace network {
+
 // ============================================================================
 // Command Types
 // ============================================================================
@@ -184,3 +187,6 @@ class CommandBroadcaster : public MulticastBroadcasterBase {
     std::mutex listenerMutex;
     std::vector<CommandListener*> listeners;
 };
+
+} // namespace network
+} // namespace phu

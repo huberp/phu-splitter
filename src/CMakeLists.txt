@@ -22,15 +22,18 @@ target_sources(phu-splitter PRIVATE
     PresetManager.h
     PresetStrip.cpp
     PresetStrip.h
-    EditorLogger.cpp
-    EditorLogger.h
-    LinkwitzRileyFilter.h
-    ../lib/MulticastBroadcasterBase.cpp
-    ../lib/MulticastBroadcasterBase.h
-    ../lib/SpectrumBroadcaster.cpp
-    ../lib/SpectrumBroadcaster.h
-    ../lib/CommandBroadcaster.cpp
-    ../lib/CommandBroadcaster.h
+    
+    # Debug components (moved to lib/debug/)
+    ../lib/debug/EditorLogger.cpp
+    ../lib/debug/EditorLogger.h
+    
+    # Network components with .cpp implementations
+    ../lib/network/MulticastBroadcasterBase.cpp
+    ../lib/network/MulticastBroadcasterBase.h
+    ../lib/network/SpectrumBroadcaster.cpp
+    ../lib/network/SpectrumBroadcaster.h
+    ../lib/network/CommandBroadcaster.cpp
+    ../lib/network/CommandBroadcaster.h
 )
 
 target_compile_definitions(phu-splitter PUBLIC

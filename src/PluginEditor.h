@@ -1,10 +1,12 @@
 #pragma once
 
-#include "../lib/FFTProcessor.h"
+#include "../lib/audio/FFTProcessor.h"
 #include "BandControlStrip.h"
 #include "CrossoverFrequencyBar.h"
 #include "PresetStrip.h"
 #include <juce_audio_processors/juce_audio_processors.h>
+
+using phu::audio::FFTProcessor;
 
 class PhuSplitterAudioProcessor;
 

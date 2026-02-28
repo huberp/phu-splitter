@@ -1,18 +1,28 @@
 #pragma once
 
-#include "../lib/AudioSampleFifo.h"
-#include "../lib/CommandBroadcaster.h"
-#include "../lib/FFTProcessor.h"
-#include "../lib/SpectrumBroadcaster.h"
-#include "../lib/SyncGlobals.h"
-#include "LinkwitzRileyFilter.h"
+#include "../lib/audio/AudioSampleFifo.h"
+#include "../lib/audio/FFTProcessor.h"
+#include "../lib/audio/LinkwitzRileyFilter.h"
+#include "../lib/events/SyncGlobals.h"
+#include "../lib/network/CommandBroadcaster.h"
+#include "../lib/network/SpectrumBroadcaster.h"
 #include <array>
 #include <atomic>
 #include <juce_audio_processors/juce_audio_processors.h>
 
+// Forward declarations
 #ifndef NDEBUG // Debug builds only
-class EditorLogger;
+namespace phu { namespace debug { class EditorLogger; } }
 #endif
+
+// Use namespaces
+using phu::audio::AudioSampleFifo;
+using phu::audio::FFTProcessor;
+using phu::events::GlobalsEventListener;
+using phu::network::CommandListener;
+using phu::network::CommandBroadcaster;
+using phu::network::SpectrumBroadcaster;
+namespace LinkwitzRiley = phu::audio::LinkwitzRiley;
 
 class PhuSplitterAudioProcessor : public juce::AudioProcessor,
                                   public GlobalsEventListener,
@@ -48,7 +58,7 @@ class PhuSplitterAudioProcessor : public juce::AudioProcessor,
 
 #ifndef NDEBUG // Debug builds only
     // Get the editor logger (for editor registration)
-    EditorLogger* getEditorLogger() const {
+    phu::debug::EditorLogger* getEditorLogger() const {
         return editorLogger.get();
     }
 #endif
@@ -117,7 +127,7 @@ class PhuSplitterAudioProcessor : public juce::AudioProcessor,
     void broadcastMuteCommand(size_t bandIndex, bool mute);
 
     // CommandListener interface
-    void onCommandReceived(CommandType commandType,
+    void onCommandReceived(phu::network::CommandType commandType,
                            uint32_t senderID,
                            const std::string& targetGroup,
                            const uint8_t* payload,
@@ -129,11 +139,11 @@ class PhuSplitterAudioProcessor : public juce::AudioProcessor,
     // Create parameter layout for APVTS
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     // DAW synchronization globals (each instance has its own)
-    SyncGlobals syncGlobals;
+    phu::events::SyncGlobals syncGlobals;
 
 #ifndef NDEBUG // Debug builds only
     // Logger for editor log view (debug builds only)
-    std::unique_ptr<EditorLogger> editorLogger;
+    std::unique_ptr<phu::debug::EditorLogger> editorLogger;
 #endif
 
     // APVTS for DAW parameter automation & state save/restore

@@ -3,6 +3,9 @@
 #include <algorithm>
 #include <cstring>
 
+namespace phu {
+namespace network {
+
 // Include socket headers only in implementation file (needed for sendto/recvfrom)
 #ifdef _WIN32
     #ifndef NOMINMAX
@@ -158,3 +161,6 @@ void CommandBroadcaster::receiverThreadRun() {
         }
     }
 }
+
+} // namespace network
+} // namespace phu

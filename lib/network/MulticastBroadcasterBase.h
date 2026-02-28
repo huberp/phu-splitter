@@ -6,6 +6,9 @@
 #include <mutex>
 #include <thread>
 
+namespace phu {
+namespace network {
+
 // Forward declare socket type to avoid including platform headers
 #ifdef _WIN32
     using mcast_socket_t = unsigned long long; // SOCKET type on Windows
@@ -106,3 +109,6 @@ class MulticastBroadcasterBase {
     void cleanupWSA();
 #endif
 };
+
+} // namespace network
+} // namespace phu

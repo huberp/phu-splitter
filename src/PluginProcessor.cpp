@@ -1,9 +1,15 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #ifndef NDEBUG // Debug builds only
-#include "EditorLogger.h"
+#include "../lib/debug/EditorLogger.h"
+using phu::debug::EditorLogger;
 #endif
-#include "../lib/EventSource.h"
+#include "../lib/events/EventSource.h"
+
+using namespace phu::events;
+using namespace phu::audio::LinkwitzRiley;
+using phu::network::CommandType;
+using phu::network::SoloMutePayload;
 
 PhuSplitterAudioProcessor::PhuSplitterAudioProcessor()
     : AudioProcessor(BusesProperties()

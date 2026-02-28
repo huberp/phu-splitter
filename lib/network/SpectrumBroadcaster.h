@@ -7,6 +7,9 @@
 #include <mutex>
 #include <vector>
 
+namespace phu {
+namespace network {
+
 /**
  * SpectrumBroadcaster: UDP multicast broadcaster/receiver for sharing
  * frequency spectrum data between plugin instances in a DAW project.
@@ -148,3 +151,6 @@ class SpectrumBroadcaster : public MulticastBroadcasterBase {
      */
     void decompressSpectrum(const uint8_t* input, int numBins, std::vector<float>& output);
 };
+
+} // namespace network
+} // namespace phu

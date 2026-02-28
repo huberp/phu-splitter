@@ -4,6 +4,9 @@
 #include <cstring>
 #include <random>
 
+namespace phu {
+namespace network {
+
 // Include socket headers only in implementation file
 #ifdef _WIN32
     #ifndef NOMINMAX
@@ -242,3 +245,6 @@ void MulticastBroadcasterBase::cleanupWSA() {
     }
 }
 #endif
+
+} // namespace network
+} // namespace phu

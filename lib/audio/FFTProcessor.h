@@ -3,6 +3,9 @@
 #include "AudioSampleFifo.h"
 #include <juce_dsp/juce_dsp.h>
 
+namespace phu {
+namespace audio {
+
 /**
  * FFT processor for spectrum analysis, designed to run on the UI thread.
  *
@@ -272,3 +275,6 @@ class FFTProcessor {
     bool monoBufferFilled = false;
     int monoSamplesAccumulated = 0;
 };
+
+} // namespace audio
+} // namespace phu

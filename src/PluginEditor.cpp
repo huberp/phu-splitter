@@ -1,5 +1,7 @@
 #include "PluginEditor.h"
-#include "EditorLogger.h"
+#ifndef NDEBUG
+#include "../lib/debug/EditorLogger.h"
+#endif
 #include "PluginProcessor.h"
 
 PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudioProcessor& p)

@@ -6,6 +6,9 @@
 #include <optional>
 #include <string>
 
+namespace phu {
+namespace audio {
+
 /**
  * NoteToFreq: Converts musical note names to frequencies in Hz.
  *
@@ -183,3 +186,6 @@ class NoteToFreq {
         return first >= 'A' && first <= 'G';
     }
 };
+
+} // namespace audio
+} // namespace phu

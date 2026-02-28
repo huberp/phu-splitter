@@ -4,6 +4,9 @@
 #include <cmath>
 #include <cstring>
 
+namespace phu {
+namespace network {
+
 // Include socket headers only in implementation file (needed for sendto/recvfrom)
 #ifdef _WIN32
     #ifndef NOMINMAX
@@ -214,3 +217,6 @@ void SpectrumBroadcaster::decompressSpectrum(const uint8_t* input, int numBins,
         output[i] = std::pow(10.0f, dB / 20.0f);                  // Back to linear
     }
 }
+
+} // namespace network
+} // namespace phu
