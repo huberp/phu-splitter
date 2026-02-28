@@ -119,7 +119,9 @@ PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudi
     remoteFFTToggle.setButtonText("Remote FFT");
     remoteFFTToggle.setToggleState(true, juce::dontSendNotification);
     remoteFFTToggle.onClick = [this]() {
-        crossoverBar.setRemoteFFTEnabled(remoteFFTToggle.getToggleState());
+        bool enabled = remoteFFTToggle.getToggleState();
+        audioProcessor.setReceiveEnabled(enabled);
+        crossoverBar.setRemoteFFTEnabled(enabled);
         crossoverBar.repaint();
     };
     addAndMakeVisible(remoteFFTToggle);
@@ -309,9 +311,9 @@ void PhuSplitterAudioProcessorEditor::timerCallback() {
 
     // Broadcast is now handled by the processor's timer — no broadcast logic here.
 
-    // Receive remote spectrums from processor's broadcaster
-    auto& broadcaster = audioProcessor.getSpectrumBroadcaster();
-    if (broadcaster.isRunning() && remoteFFTToggle.getToggleState()) {
+    // Receive remote spectrums from processor's broadcaster (independent from broadcasting)
+    if (remoteFFTToggle.getToggleState()) {
+        auto& broadcaster = audioProcessor.getSpectrumBroadcaster();
         auto remoteSpectrums = broadcaster.getReceivedSpectrums();
         crossoverBar.setRemoteSpectrums(remoteSpectrums);
     } else {

@@ -116,6 +116,10 @@ class PhuSplitterAudioProcessor : public juce::AudioProcessor,
     SpectrumBroadcaster& getSpectrumBroadcaster() { return m_spectrumBroadcaster; }
     bool isBroadcastEnabled() const { return m_broadcastEnabled.load(); }
     void setBroadcastEnabled(bool enabled);
+    
+    // Spectrum receiving (independent from broadcasting)
+    bool isReceiveEnabled() const { return m_receiveEnabled.load(); }
+    void setReceiveEnabled(bool enabled);
 
     // Command broadcasting (owned by processor alongside spectrum broadcaster)
     CommandBroadcaster& getCommandBroadcaster() { return m_commandBroadcaster; }
@@ -179,6 +183,7 @@ class PhuSplitterAudioProcessor : public juce::AudioProcessor,
     FFTProcessor m_broadcastFFT{12};            // Dedicated FFT for broadcast
     AudioSampleFifo<2> m_broadcastFifo;          // Dedicated FIFO fed from processBlock
     std::atomic<bool> m_broadcastEnabled{false}; // Persisted in state
+    std::atomic<bool> m_receiveEnabled{true};    // Independent receive enable (default on)
 
     // Command broadcasting (lives in processor alongside spectrum broadcaster)
     CommandBroadcaster m_commandBroadcaster;

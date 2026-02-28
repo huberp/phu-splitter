@@ -69,6 +69,24 @@ void PhuSplitterAudioProcessor::prepareToPlay(double sampleRate, int samplesPerB
     m_outputSumFifo.reset();
     m_broadcastFifo.reset();
 
+    // Initialize broadcasters (one-time setup, stays running)
+    if (!m_spectrumBroadcaster.isRunning()) {
+        if (m_spectrumBroadcaster.initialize()) {
+            m_spectrumBroadcaster.setReceiveEnabled(m_receiveEnabled.load());
+            m_spectrumBroadcaster.setBroadcastEnabled(m_broadcastEnabled.load());
+        }
+    }
+    if (!m_commandBroadcaster.isRunning()) {
+        if (m_commandBroadcaster.initialize()) {
+            m_commandBroadcaster.addListener(this);
+        }
+    }
+
+    // Start timer if either broadcast or receive is enabled
+    if ((m_broadcastEnabled.load() || m_receiveEnabled.load()) && !isTimerRunning()) {
+        startTimerHz(30); // 30 Hz for FFT processing
+    }
+
     // Read current crossover frequencies from parameters
     for (size_t i = 0; i < NUM_CROSSOVER_FREQS; ++i)
         currentFreqs[i] = crossoverParamPtrs[i]->load();
@@ -475,24 +493,50 @@ void PhuSplitterAudioProcessor::setBroadcastEnabled(bool enabled) {
     if (enabled == m_broadcastEnabled.load())
         return;
 
+    m_broadcastEnabled.store(enabled);
+
     if (enabled) {
-        if (m_spectrumBroadcaster.initialize()) {
+        m_broadcastFifo.reset();
+        // Enable broadcasting in the broadcaster
+        if (m_spectrumBroadcaster.isRunning()) {
             m_spectrumBroadcaster.setBroadcastEnabled(true);
-            m_spectrumBroadcaster.setReceiveEnabled(true);
-            m_broadcastEnabled.store(true);
-            m_broadcastFifo.reset();
-            startTimerHz(30); // 30 Hz broadcast FFT processing
         }
-        // Initialize command broadcaster alongside spectrum broadcaster
-        if (m_commandBroadcaster.initialize()) {
-            m_commandBroadcaster.addListener(this);
+        // Start timer if not already running (needed for FFT processing)
+        if (!isTimerRunning()) {
+            startTimerHz(30);
         }
     } else {
-        m_broadcastEnabled.store(false);
-        stopTimer();
-        m_commandBroadcaster.removeListener(this);
-        m_commandBroadcaster.shutdown();
-        m_spectrumBroadcaster.shutdown();
+        // Disable broadcasting but keep receiving if enabled
+        m_spectrumBroadcaster.setBroadcastEnabled(false);
+        // Stop timer only if receive is also disabled
+        if (!m_receiveEnabled.load() && isTimerRunning()) {
+            stopTimer();
+        }
+    }
+}
+
+void PhuSplitterAudioProcessor::setReceiveEnabled(bool enabled) {
+    if (enabled == m_receiveEnabled.load())
+        return;
+
+    m_receiveEnabled.store(enabled);
+
+    if (enabled) {
+        // Enable receiving in the broadcaster
+        if (m_spectrumBroadcaster.isRunning()) {
+            m_spectrumBroadcaster.setReceiveEnabled(true);
+        }
+        // Start timer if not already running (needed for FFT processing even if just receiving)
+        if (!isTimerRunning()) {
+            startTimerHz(30);
+        }
+    } else {
+        // Disable receiving but keep broadcasting if enabled
+        m_spectrumBroadcaster.setReceiveEnabled(false);
+        // Stop timer only if broadcast is also disabled
+        if (!m_broadcastEnabled.load() && isTimerRunning()) {
+            stopTimer();
+        }
     }
 }
 
@@ -542,15 +586,17 @@ void PhuSplitterAudioProcessor::onCommandReceived(CommandType commandType,
 }
 
 void PhuSplitterAudioProcessor::timerCallback() {
-    // Process broadcast FFT from dedicated FIFO
+    // Process broadcast FFT from dedicated FIFO (always process for local visualization)
     m_broadcastFFT.process(m_broadcastFifo);
 
-    // Broadcast computed spectrum
-    const float* magnitudes = m_broadcastFFT.getMagnitudeSpectrum();
-    int numBins = m_broadcastFFT.getNumBins();
-    float sampleRate = static_cast<float>(getSampleRate());
+    // Broadcast computed spectrum only if broadcasting is enabled
+    if (m_broadcastEnabled.load()) {
+        const float* magnitudes = m_broadcastFFT.getMagnitudeSpectrum();
+        int numBins = m_broadcastFFT.getNumBins();
+        float sampleRate = static_cast<float>(getSampleRate());
 
-    if (numBins > 0 && sampleRate > 0.0f) {
-        m_spectrumBroadcaster.broadcastSpectrum(magnitudes, numBins, sampleRate);
+        if (numBins > 0 && sampleRate > 0.0f) {
+            m_spectrumBroadcaster.broadcastSpectrum(magnitudes, numBins, sampleRate);
+        }
     }
 }
