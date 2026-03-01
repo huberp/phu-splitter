@@ -69,6 +69,10 @@ void PhuSplitterAudioProcessor::prepareToPlay(double sampleRate, int samplesPerB
     m_outputSumFifo.reset();
     m_broadcastFifo.reset();
 
+    // Reset per-band waveform FIFOs
+    for (auto& f : m_bandPreGainFifos) f.reset();
+    for (auto& f : m_bandPostGainFifos) f.reset();
+
     // Initialize broadcasters (one-time setup, stays running)
     if (!m_spectrumBroadcaster.isRunning()) {
         if (m_spectrumBroadcaster.initialize()) {
@@ -218,6 +222,12 @@ void PhuSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         // Apply band gains and solo/mute logic, then write each band to corresponding stereo output channel pair
         // Band 0 -> channels 0,1 (after input); Band 1 -> channels 2,3; etc.
         for (size_t band = 0; band < NUM_BANDS; ++band) {
+            // Store pre-gain samples for waveform display FIFO
+            if (i < kMaxBlockSize) {
+                m_preBandL[band][static_cast<size_t>(i)] = bandsL[band];
+                m_preBandR[band][static_cast<size_t>(i)] = bandsR[band];
+            }
+
             const int leftChannel = static_cast<int>(band * 2);
             const int rightChannel = leftChannel + 1;
 
@@ -251,6 +261,22 @@ void PhuSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     if (m_broadcastEnabled.load()) {
         const float* sumChannels[2] = { m_sumL.data(), m_sumR.data() };
         m_broadcastFifo.push(sumChannels, samplesToProcess);
+    }
+
+    // Push per-band samples to FIFOs for rolling waveform display
+    for (size_t band = 0; band < NUM_BANDS; ++band) {
+        // Pre-gain FIFO (from block buffers filled in sample loop)
+        const float* preChannels[2] = { m_preBandL[band].data(), m_preBandR[band].data() };
+        m_bandPreGainFifos[band].push(preChannels, samplesToProcess);
+
+        // Post-gain FIFO (read directly from output bus buffer)
+        const int leftCh = static_cast<int>(band * 2);
+        const int rightCh = leftCh + 1;
+        if (leftCh < totalOutputChannels && rightCh < totalOutputChannels) {
+            const float* postChannels[2] = { buffer.getReadPointer(leftCh),
+                                              buffer.getReadPointer(rightCh) };
+            m_bandPostGainFifos[band].push(postChannels, samplesToProcess);
+        }
     }
 
     // Mark end of processing

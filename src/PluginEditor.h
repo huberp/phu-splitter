@@ -2,6 +2,7 @@
 
 #include "../lib/audio/FFTProcessor.h"
 #include "BandControlStrip.h"
+#include "BandWaveformDisplay.h"
 #include "CrossoverFrequencyBar.h"
 #include "PresetStrip.h"
 #include <juce_audio_processors/juce_audio_processors.h>
@@ -71,6 +72,9 @@ class PhuSplitterAudioProcessorEditor : public juce::AudioProcessorEditor,
     
     // Spectrum broadcast controls (broadcaster lives in processor)
     juce::ToggleButton broadcastToggle;
+
+    // Rolling band waveform display (pre-gain + post-gain overlay)
+    BandWaveformDisplay bandWaveformDisplay;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PhuSplitterAudioProcessorEditor)
 };

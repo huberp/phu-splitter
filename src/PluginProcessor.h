@@ -112,6 +112,12 @@ class PhuSplitterAudioProcessor : public juce::AudioProcessor,
     AudioSampleFifo<2>& getInputFifo() { return m_inputFifo; }
     AudioSampleFifo<2>& getOutputSumFifo() { return m_outputSumFifo; }
 
+    // Per-band waveform FIFOs for rolling waveform display
+    AudioSampleFifo<2>& getBandPreGainFifo(size_t band) { return m_bandPreGainFifos[band]; }
+    AudioSampleFifo<2>& getBandPostGainFifo(size_t band) { return m_bandPostGainFifos[band]; }
+    std::array<AudioSampleFifo<2>, NUM_BANDS>& getBandPreGainFifos() { return m_bandPreGainFifos; }
+    std::array<AudioSampleFifo<2>, NUM_BANDS>& getBandPostGainFifos() { return m_bandPostGainFifos; }
+
     // Spectrum broadcasting (owned by processor for headless operation)
     SpectrumBroadcaster& getSpectrumBroadcaster() { return m_spectrumBroadcaster; }
     bool isBroadcastEnabled() const { return m_broadcastEnabled.load(); }
@@ -193,6 +199,14 @@ class PhuSplitterAudioProcessor : public juce::AudioProcessor,
     static constexpr int kMaxBlockSize = 8192;
     std::array<float, kMaxBlockSize> m_sumL{};
     std::array<float, kMaxBlockSize> m_sumR{};
+
+    // Per-band pre-gain block buffers (filled sample-by-sample, pushed to FIFO after loop)
+    std::array<std::array<float, kMaxBlockSize>, NUM_BANDS> m_preBandL{};
+    std::array<std::array<float, kMaxBlockSize>, NUM_BANDS> m_preBandR{};
+
+    // Per-band FIFOs for rolling waveform display (pre-gain and post-gain)
+    std::array<AudioSampleFifo<2>, NUM_BANDS> m_bandPreGainFifos;
+    std::array<AudioSampleFifo<2>, NUM_BANDS> m_bandPostGainFifos;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PhuSplitterAudioProcessor)
 };

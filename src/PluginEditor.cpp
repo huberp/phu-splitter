@@ -145,6 +145,12 @@ PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudi
     };
     addAndMakeVisible(broadcastToggle);
 
+    // Band waveform display
+    addAndMakeVisible(bandWaveformDisplay);
+    bandWaveformDisplay.setSampleRate(audioProcessor.getSampleRate() > 0.0
+                                          ? audioProcessor.getSampleRate()
+                                          : 48000.0);
+
     // Initialize FFT processors with slider values
     inputFFT.setFFTOrder(static_cast<int>(fftSizeSlider.getValue()));
     outputSumFFT.setFFTOrder(static_cast<int>(fftSizeSlider.getValue()));
@@ -180,16 +186,16 @@ PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudi
 
     // Set editor size (wider for crossover bar, taller to fit both sections)
     // Layout: area(10) + preset(30+6) + label(25+3) + crossover(220+10) + 
-    //         FFT group(87+8) + Local(60+8) + Remote(60+8) = 535px
+    //         FFT group(87+8) + Local(60+8) + Remote(60+8) + Waveform(120+8) = 663px
     // Debug build: add ~150px for debug log
-    setSize(810, 690);
+    setSize(810, 820);
 
     // Add initial welcome message
     addLogMessage("PhuSplitter Debug Log initialized");
 #else
     // Smaller editor size for release builds (no debug log)
-    // Release build: height for all controls + FFT groups + margins
-    setSize(810, 540);
+    // Release build: height for all controls + FFT groups + waveform + margins
+    setSize(810, 670);
 #endif
 }
 
@@ -306,6 +312,11 @@ void PhuSplitterAudioProcessorEditor::resized() {
 
     area.removeFromTop(kGroupSpacing);
 
+    // Band waveform display (7 columns, pre-gain + post-gain overlay)
+    bandWaveformDisplay.setBounds(area.removeFromTop(120));
+
+    area.removeFromTop(kGroupSpacing);
+
 #ifndef NDEBUG // Debug builds only
     // Debug log section below (debug builds only)
     logLabel.setBounds(area.removeFromTop(25));
@@ -335,6 +346,12 @@ void PhuSplitterAudioProcessorEditor::timerCallback() {
 
     // Trigger repaint of spectrum visualization
     crossoverBar.repaint();
+
+    // Update band waveform display from per-band FIFOs
+    bandWaveformDisplay.setSampleRate(audioProcessor.getSampleRate());
+    bandWaveformDisplay.updateFromFifos(audioProcessor.getBandPreGainFifos(),
+                                        audioProcessor.getBandPostGainFifos());
+    bandWaveformDisplay.repaint();
 }
 
 #ifndef NDEBUG // Debug builds only

@@ -16,6 +16,8 @@ target_sources(phu-splitter PRIVATE
     PluginEditor.h
     BandControlStrip.cpp
     BandControlStrip.h
+    BandWaveformDisplay.cpp
+    BandWaveformDisplay.h
     CrossoverFrequencyBar.cpp
     CrossoverFrequencyBar.h
     PresetManager.cpp
