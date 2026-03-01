@@ -50,6 +50,7 @@ class PhuSplitterAudioProcessorEditor : public juce::AudioProcessorEditor,
     FFTProcessor outputSumFFT{12};
 
     // Spectrum display controls
+    juce::GroupComponent fftGroup;
     juce::Slider fftSizeSlider;
     juce::Label fftSizeLabel;
     juce::Slider attackSlider;
@@ -70,7 +71,6 @@ class PhuSplitterAudioProcessorEditor : public juce::AudioProcessorEditor,
     
     // Spectrum broadcast controls (broadcaster lives in processor)
     juce::ToggleButton broadcastToggle;
-    juce::Label broadcastLabel;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PhuSplitterAudioProcessorEditor)
 };
