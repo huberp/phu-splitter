@@ -4,6 +4,9 @@
 #include <cstring>
 #include <juce_core/juce_core.h>
 
+namespace phu {
+namespace audio {
+
 /**
  * Lock-free FIFO for transferring audio samples from the audio thread to the UI thread.
  *
@@ -129,3 +132,6 @@ class AudioSampleFifo {
     juce::AbstractFifo fifo;
     std::array<std::array<float, kFifoSize>, NumChannels> buffer;
 };
+
+} // namespace audio
+} // namespace phu

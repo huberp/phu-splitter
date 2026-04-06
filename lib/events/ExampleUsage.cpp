@@ -9,6 +9,8 @@
 #include "SyncGlobals.h"
 #include <iostream>
 
+using namespace phu::events;
+
 /**
  * Example 1: Simple listener for GLOBALS events
  * Mirrors: GLOBALS:addEventListener(function(inEvent) ... end)

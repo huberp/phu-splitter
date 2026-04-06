@@ -22,6 +22,16 @@ This repo is set up for CMake presets.
 
 ### Windows
 
+**Recommended (PowerShell):**
+```powershell
+.\scripts\build.ps1           # Build Release configuration
+.\scripts\build.ps1 -Clean    # Clean build
+.\scripts\build.ps1 -Config Debug  # Build Debug configuration
+```
+
+The build script automatically locates cmake.exe in Visual Studio installations.
+
+**Manual CMake:**
 - Configure: `cmake --preset vs2026-x64`
 - Build Debug: `cmake --build --preset debug`
 - Build Release: `cmake --build --preset release`

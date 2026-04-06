@@ -4,6 +4,9 @@
 #include <algorithm>
 #include <vector>
 
+namespace phu {
+namespace events {
+
 /**
  * Base EventSource template
  *
@@ -53,3 +56,6 @@ template <typename ListenerType> class EventSource {
         return listeners.size();
     }
 };
+
+} // namespace events
+} // namespace phu

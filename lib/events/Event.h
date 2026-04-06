@@ -2,6 +2,9 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
+namespace phu {
+namespace events {
+
 /**
  * Base Event class - mirrors the Lua event table structure
  * All events carry a source pointer and context information
@@ -25,3 +28,6 @@ struct Event {
   protected:
     Event() = default;
 };
+
+} // namespace events
+} // namespace phu
