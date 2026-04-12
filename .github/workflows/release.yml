@@ -16,71 +16,199 @@ on:
         type: boolean
         default: false
 
+permissions:
+  contents: write
+
 jobs:
-  build-and-release:
-    runs-on: windows-latest
-    permissions:
-      contents: write
+  # ---------------------------------------------------------------------------
+  # Resolve the checkout ref once; all build jobs consume the output
+  # ---------------------------------------------------------------------------
+  prepare:
+    name: Resolve ref
+    runs-on: ubuntu-latest
+    outputs:
+      ref: ${{ steps.resolve.outputs.ref }}
+      version: ${{ steps.resolve.outputs.version }}
     steps:
-    - name: Determine ref to checkout
-      id: determine-ref
-      shell: bash
-      run: |
-        if [ -n "${{ inputs.tag }}" ]; then
-          echo "ref=${{ inputs.tag }}" >> $GITHUB_OUTPUT
-          echo "Using manually specified tag: ${{ inputs.tag }}"
-        elif [ "${{ github.ref_type }}" == "tag" ]; then
-          echo "ref=${{ github.ref_name }}" >> $GITHUB_OUTPUT
-          echo "Using pushed tag: ${{ github.ref_name }}"
-        else
-          echo "ref=${{ github.ref }}" >> $GITHUB_OUTPUT
-          echo "Using current ref: ${{ github.ref }}"
-        fi
-    
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        ref: ${{ steps.determine-ref.outputs.ref }}
-        submodules: recursive
-
-    - name: Configure CMake
-      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
-
-    - name: Build
-      run: cmake --build build --config Release
-
-    - name: Package VST3
-      run: |
-        mkdir -p artifacts
-        # Create a zip file of the VST3 plugin folder
-        cd build/src/phu-splitter_artefacts/Release/VST3
-        # Find the .vst3 directory and zip it
-        for vst3_dir in *.vst3; do
-          if [ -d "$vst3_dir" ]; then
-            echo "Found VST3 plugin: $vst3_dir"
-            7z a -tzip "$GITHUB_WORKSPACE/artifacts/${vst3_dir%.vst3}.zip" "$vst3_dir"
-            break
+      - name: Resolve ref
+        id: resolve
+        shell: bash
+        run: |
+          if [ -n "${{ inputs.tag }}" ]; then
+            REF="${{ inputs.tag }}"
+          elif [ "${{ github.ref_type }}" == "tag" ]; then
+            REF="${{ github.ref_name }}"
+          else
+            REF="${{ github.ref }}"
           fi
-        done
-        # Verify artifact was created
-        if [ ! -f "$GITHUB_WORKSPACE/artifacts/"*.zip ]; then
-          echo "Error: No .vst3 plugin found or packaging failed"
-          exit 1
-        fi
-        cd "$GITHUB_WORKSPACE/artifacts"
-        ls -lh
-      shell: bash
+          echo "ref=$REF" >> $GITHUB_OUTPUT
+          echo "version=${REF#v}" >> $GITHUB_OUTPUT
+          echo "Resolved ref: $REF"
 
-    # Pin to v2.4.2 to avoid retry loop bug in v2.5.0+ (see https://github.com/softprops/action-gh-release/issues/704)
-    - name: Create Release
-      uses: softprops/action-gh-release@v2.4.2
-      with:
-        tag_name: ${{ steps.determine-ref.outputs.ref }}
-        files: artifacts/*.zip
-        body: ''
-        generate_release_notes: true
-        draft: ${{ inputs.draft || false }}
-        prerelease: ${{ contains(steps.determine-ref.outputs.ref, 'alpha') || contains(steps.determine-ref.outputs.ref, 'beta') || contains(steps.determine-ref.outputs.ref, 'rc') }}
-        fail_on_unmatched_files: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # ---------------------------------------------------------------------------
+  # Build & package Windows x64 VST3
+  # ---------------------------------------------------------------------------
+  release-windows-x64:
+    name: Windows x64 VST3
+    needs: prepare
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.ref }}
+          submodules: recursive
+
+      - name: Configure CMake (x64)
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -A x64
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Validate VST3 with pluginval
+        shell: pwsh
+        run: |
+          Write-Host "Downloading pluginval..."
+          Invoke-WebRequest `
+            -Uri "https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_Windows.zip" `
+            -OutFile "pluginval.zip"
+          Expand-Archive -Path "pluginval.zip" -DestinationPath "pluginval" -Force
+
+          $vst3 = Get-ChildItem -Recurse `
+            -Path "build" `
+            -Filter "*.vst3" -Directory | Select-Object -First 1 -ExpandProperty FullName
+
+          Write-Host "Validating: $vst3"
+          .\pluginval\pluginval.exe --strictness-level 5 --validate-in-process --validate "$vst3"
+
+      - name: Package VST3
+        shell: pwsh
+        run: |
+          $version = "${{ needs.prepare.outputs.version }}"
+          $zipName = "PHU-SPLITTER-windows-x64-${version}.zip"
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          New-Item -ItemType Directory -Force -Path staging | Out-Null
+
+          $vst3 = Get-ChildItem -Recurse `
+            -Path "build" `
+            -Filter "*.vst3" -Directory | Select-Object -First 1
+
+          Copy-Item -Path $vst3.FullName -Destination "staging" -Recurse
+          Compress-Archive -Path "staging\*" -DestinationPath "dist\$zipName" -Force
+          Write-Host "Created dist\$zipName"
+
+      - name: Upload Windows x64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64-vst3
+          path: dist/*.zip
+
+  # ---------------------------------------------------------------------------
+  # Build & package Windows ARM64 VST3 (cross-compiled on x64 runner)
+  # ---------------------------------------------------------------------------
+  release-windows-arm64:
+    name: Windows ARM64 VST3
+    needs: prepare
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.ref }}
+          submodules: recursive
+
+      - name: Configure CMake (ARM64 cross-compile)
+        run: cmake -B build-arm64 -DCMAKE_BUILD_TYPE=Release -A ARM64
+
+      - name: Build
+        run: cmake --build build-arm64 --config Release
+
+      - name: Package VST3
+        shell: pwsh
+        run: |
+          $version = "${{ needs.prepare.outputs.version }}"
+          $zipName = "PHU-SPLITTER-windows-arm64-${version}.zip"
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          New-Item -ItemType Directory -Force -Path staging | Out-Null
+
+          $vst3 = Get-ChildItem -Recurse `
+            -Path "build-arm64" `
+            -Filter "*.vst3" -Directory | Select-Object -First 1
+
+          Copy-Item -Path $vst3.FullName -Destination "staging" -Recurse
+          Compress-Archive -Path "staging\*" -DestinationPath "dist\$zipName" -Force
+          Write-Host "Created dist\$zipName"
+
+      - name: Upload Windows ARM64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-arm64-vst3
+          path: dist/*.zip
+
+  # ---------------------------------------------------------------------------
+  # Generate README.pdf, inject into all zips, publish GitHub Release
+  # ---------------------------------------------------------------------------
+  publish-release:
+    name: Publish GitHub Release
+    needs: [prepare, release-windows-x64, release-windows-arm64]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.ref }}
+
+      - name: Download Windows x64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-x64-vst3
+          path: dist/
+
+      - name: Download Windows ARM64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-arm64-vst3
+          path: dist/
+
+      - name: Generate README.pdf
+        run: |
+          npm install -g md-to-pdf
+          md-to-pdf README.md --dest README.pdf
+
+      - name: Inject README.pdf into all release zips
+        run: |
+          for zip in dist/*.zip; do
+            zip -j "$zip" README.pdf
+            echo "Injected README.pdf into $zip"
+          done
+
+      - name: List release assets
+        run: ls -lh dist/
+
+      # Pin to v2.4.2 to avoid retry loop bug in v2.5.0+ (see https://github.com/softprops/action-gh-release/issues/704)
+      - name: Create Release
+        uses: softprops/action-gh-release@v2.4.2
+        with:
+          tag_name: ${{ needs.prepare.outputs.ref }}
+          name: phu-splitter ${{ needs.prepare.outputs.ref }}
+          files: dist/*.zip
+          body: |
+            ### Installation
+
+            **Windows x64** — download `PHU-SPLITTER-windows-x64-*.zip`, extract and copy
+            `phu-splitter.vst3` to `C:\Program Files\Common Files\VST3\`.
+
+            **Windows ARM64** — download `PHU-SPLITTER-windows-arm64-*.zip`, extract and copy
+            `phu-splitter.vst3` to `C:\Program Files\Common Files\VST3\`.
+
+            Each zip contains the `.vst3` bundle and a `README.pdf` with full documentation.
+
+            ### Prerequisite (Windows)
+
+            Requires the [Visual C++ 2015–2022 Redistributable (x64)](https://aka.ms/vs/17/release/vc_redist.x64.exe).
+          generate_release_notes: true
+          draft: ${{ inputs.draft || false }}
+          prerelease: ${{ contains(needs.prepare.outputs.ref, 'alpha') || contains(needs.prepare.outputs.ref, 'beta') || contains(needs.prepare.outputs.ref, 'rc') }}
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

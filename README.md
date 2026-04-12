@@ -103,23 +103,4 @@ Presets are stored as XML files in `%APPDATA%/PhuSplitter/Presets/`.
 - **Delete / Rename** — manage saved presets from the dropdown menu
 - **Prev / Next** — step through presets sequentially
 
-## Implementation Details
-
-- **Linkwitz-Riley filters**: 8th order (48 dB/octave) crossovers implemented using cascaded biquad filters in Direct Form I
-- **Phase coherent**: Allpass compensation ensures flat magnitude response when all bands are summed
-- **Multi-output architecture**: 1 stereo input → 7 stereo output buses
-- **Real-time safe**: Lock-free logging system for editor updates from audio thread
-- **Note-to-frequency conversion**: Header-only `NoteToFreq` utility in `lib/`
-
-## Project Structure
-
-| Path | Description |
-|------|-------------|
-| `src/LinkwitzRileyFilter.h` | Core DSP — biquad filters, LR crossovers, MultiBandN |
-| `src/PluginProcessor.cpp/.h` | Audio processor with APVTS parameter management |
-| `src/PluginEditor.cpp/.h` | Plugin editor UI layout |
-| `src/CrossoverFrequencyBar.cpp/.h` | Draggable frequency bar with text input |
-| `src/PresetManager.cpp/.h` | Preset storage engine |
-| `src/PresetStrip.cpp/.h` | Inline preset navigation UI |
-| `lib/NoteToFreq.h` | Musical note name → frequency converter |
-| `lib/` | Event system library (see `lib/README.md`) |
+For a detailed code map see [CONTRIBUTING.md](CONTRIBUTING.md).
