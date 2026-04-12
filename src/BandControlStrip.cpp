@@ -57,6 +57,11 @@ void BandControlStrip::onSoloButtonClicked(size_t bandIndex) {
     if (bandIndex < NUM_BANDS) {
         bool newState = soloButtons[bandIndex]->getToggleState();
         processorRef.setBandSolo(bandIndex, newState);
+
+        // Alt+Click: broadcast solo command to all peer instances
+        if (juce::ModifierKeys::currentModifiers.isAltDown()) {
+            processorRef.broadcastSoloCommand(bandIndex, newState);
+        }
     }
 }
 
@@ -64,6 +69,11 @@ void BandControlStrip::onMuteButtonClicked(size_t bandIndex) {
     if (bandIndex < NUM_BANDS) {
         bool newState = muteButtons[bandIndex]->getToggleState();
         processorRef.setBandMute(bandIndex, newState);
+
+        // Alt+Click: broadcast mute command to all peer instances
+        if (juce::ModifierKeys::currentModifiers.isAltDown()) {
+            processorRef.broadcastMuteCommand(bandIndex, newState);
+        }
     }
 }
 

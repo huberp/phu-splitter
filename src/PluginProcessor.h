@@ -1,17 +1,33 @@
 #pragma once
 
-#include "../lib/AudioSampleFifo.h"
-#include "../lib/SyncGlobals.h"
-#include "LinkwitzRileyFilter.h"
+#include "../lib/audio/AudioSampleFifo.h"
+#include "../lib/audio/FFTProcessor.h"
+#include "../lib/audio/LinkwitzRileyFilter.h"
+#include "../lib/events/SyncGlobals.h"
+#include "../lib/network/CommandBroadcaster.h"
+#include "../lib/network/SpectrumBroadcaster.h"
 #include <array>
 #include <atomic>
 #include <juce_audio_processors/juce_audio_processors.h>
 
+// Forward declarations
 #ifndef NDEBUG // Debug builds only
-class EditorLogger;
+namespace phu { namespace debug { class EditorLogger; } }
 #endif
 
-class PhuSplitterAudioProcessor : public juce::AudioProcessor, public GlobalsEventListener {
+// Use namespaces
+using phu::audio::AudioSampleFifo;
+using phu::audio::FFTProcessor;
+using phu::events::GlobalsEventListener;
+using phu::network::CommandListener;
+using phu::network::CommandBroadcaster;
+using phu::network::SpectrumBroadcaster;
+namespace LinkwitzRiley = phu::audio::LinkwitzRiley;
+
+class PhuSplitterAudioProcessor : public juce::AudioProcessor,
+                                  public GlobalsEventListener,
+                                  public CommandListener,
+                                  private juce::Timer {
   public:
     PhuSplitterAudioProcessor();
     ~PhuSplitterAudioProcessor() override;
@@ -42,7 +58,7 @@ class PhuSplitterAudioProcessor : public juce::AudioProcessor, public GlobalsEve
 
 #ifndef NDEBUG // Debug builds only
     // Get the editor logger (for editor registration)
-    EditorLogger* getEditorLogger() const {
+    phu::debug::EditorLogger* getEditorLogger() const {
         return editorLogger.get();
     }
 #endif
@@ -96,15 +112,48 @@ class PhuSplitterAudioProcessor : public juce::AudioProcessor, public GlobalsEve
     AudioSampleFifo<2>& getInputFifo() { return m_inputFifo; }
     AudioSampleFifo<2>& getOutputSumFifo() { return m_outputSumFifo; }
 
+    // Per-band waveform FIFOs for rolling waveform display
+    AudioSampleFifo<2>& getBandPreGainFifo(size_t band) { return m_bandPreGainFifos[band]; }
+    AudioSampleFifo<2>& getBandPostGainFifo(size_t band) { return m_bandPostGainFifos[band]; }
+    std::array<AudioSampleFifo<2>, NUM_BANDS>& getBandPreGainFifos() { return m_bandPreGainFifos; }
+    std::array<AudioSampleFifo<2>, NUM_BANDS>& getBandPostGainFifos() { return m_bandPostGainFifos; }
+
+    // Spectrum broadcasting (owned by processor for headless operation)
+    SpectrumBroadcaster& getSpectrumBroadcaster() { return m_spectrumBroadcaster; }
+    bool isBroadcastEnabled() const { return m_broadcastEnabled.load(); }
+    void setBroadcastEnabled(bool enabled);
+    
+    // Spectrum receiving (independent from broadcasting)
+    bool isReceiveEnabled() const { return m_receiveEnabled.load(); }
+    void setReceiveEnabled(bool enabled);
+
+    // Command broadcasting (owned by processor alongside spectrum broadcaster)
+    CommandBroadcaster& getCommandBroadcaster() { return m_commandBroadcaster; }
+
+    /** Broadcast a solo state change to all peers (called from Alt+Click). */
+    void broadcastSoloCommand(size_t bandIndex, bool solo);
+
+    /** Broadcast a mute state change to all peers (called from Alt+Click). */
+    void broadcastMuteCommand(size_t bandIndex, bool mute);
+
+    // CommandListener interface
+    void onCommandReceived(phu::network::CommandType commandType,
+                           uint32_t senderID,
+                           const std::string& targetGroup,
+                           const uint8_t* payload,
+                           uint16_t payloadSize) override;
+
   private:
+    // Timer callback drives broadcast FFT + spectrum sending (runs even when editor is closed)
+    void timerCallback() override;
     // Create parameter layout for APVTS
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     // DAW synchronization globals (each instance has its own)
-    SyncGlobals syncGlobals;
+    phu::events::SyncGlobals syncGlobals;
 
 #ifndef NDEBUG // Debug builds only
     // Logger for editor log view (debug builds only)
-    std::unique_ptr<EditorLogger> editorLogger;
+    std::unique_ptr<phu::debug::EditorLogger> editorLogger;
 #endif
 
     // APVTS for DAW parameter automation & state save/restore
@@ -135,11 +184,29 @@ class PhuSplitterAudioProcessor : public juce::AudioProcessor, public GlobalsEve
     AudioSampleFifo<2> m_inputFifo;
     AudioSampleFifo<2> m_outputSumFifo;
 
+    // Spectrum broadcasting (lives in processor so broadcast continues when editor is closed)
+    SpectrumBroadcaster m_spectrumBroadcaster;
+    FFTProcessor m_broadcastFFT{12};            // Dedicated FFT for broadcast
+    AudioSampleFifo<2> m_broadcastFifo;          // Dedicated FIFO fed from processBlock
+    std::atomic<bool> m_broadcastEnabled{false}; // Persisted in state
+    std::atomic<bool> m_receiveEnabled{true};    // Independent receive enable (default on)
+
+    // Command broadcasting (lives in processor alongside spectrum broadcaster)
+    CommandBroadcaster m_commandBroadcaster;
+
     // Temp buffer for accumulating output sum per processBlock
     // Max expected host buffer size; if larger, we process in chunks
     static constexpr int kMaxBlockSize = 8192;
     std::array<float, kMaxBlockSize> m_sumL{};
     std::array<float, kMaxBlockSize> m_sumR{};
+
+    // Per-band pre-gain block buffers (filled sample-by-sample, pushed to FIFO after loop)
+    std::array<std::array<float, kMaxBlockSize>, NUM_BANDS> m_preBandL{};
+    std::array<std::array<float, kMaxBlockSize>, NUM_BANDS> m_preBandR{};
+
+    // Per-band FIFOs for rolling waveform display (pre-gain and post-gain)
+    std::array<AudioSampleFifo<2>, NUM_BANDS> m_bandPreGainFifos;
+    std::array<AudioSampleFifo<2>, NUM_BANDS> m_bandPostGainFifos;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PhuSplitterAudioProcessor)
 };

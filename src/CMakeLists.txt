@@ -16,15 +16,26 @@ target_sources(phu-splitter PRIVATE
     PluginEditor.h
     BandControlStrip.cpp
     BandControlStrip.h
+    BandWaveformDisplay.cpp
+    BandWaveformDisplay.h
     CrossoverFrequencyBar.cpp
     CrossoverFrequencyBar.h
     PresetManager.cpp
     PresetManager.h
     PresetStrip.cpp
     PresetStrip.h
-    EditorLogger.cpp
-    EditorLogger.h
-    LinkwitzRileyFilter.h
+    
+    # Debug components (moved to lib/debug/)
+    ../lib/debug/EditorLogger.cpp
+    ../lib/debug/EditorLogger.h
+    
+    # Network components with .cpp implementations
+    ../lib/network/MulticastBroadcasterBase.cpp
+    ../lib/network/MulticastBroadcasterBase.h
+    ../lib/network/SpectrumBroadcaster.cpp
+    ../lib/network/SpectrumBroadcaster.h
+    ../lib/network/CommandBroadcaster.cpp
+    ../lib/network/CommandBroadcaster.h
 )
 
 target_compile_definitions(phu-splitter PUBLIC
@@ -36,6 +47,11 @@ target_compile_definitions(phu-splitter PUBLIC
     JUCE_USE_OGGVORBIS=0
     JUCE_USE_FLAC=0
 )
+
+# Prevent Windows.h from defining min/max macros
+if(WIN32)
+    target_compile_definitions(phu-splitter PUBLIC NOMINMAX)
+endif()
 
 target_link_libraries(phu-splitter
     PRIVATE

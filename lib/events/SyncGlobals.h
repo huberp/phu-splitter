@@ -4,6 +4,10 @@
 #include "SyncGlobalsListener.h"
 #include <cstddef>
 #include <juce_audio_processors/juce_audio_processors.h>
+
+namespace phu {
+namespace events {
+
 /**
  * EventSource for GLOBALS events
  *
@@ -213,3 +217,6 @@ class SyncGlobals : public GlobalsEventSource {
         return ctx;
     }
 };
+
+} // namespace events
+} // namespace phu

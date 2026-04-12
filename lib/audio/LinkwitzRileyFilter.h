@@ -16,6 +16,8 @@
  * Template parameter SampleType can be float or double.
  */
 
+namespace phu {
+namespace audio {
 namespace LinkwitzRiley {
 
 // ============================================================================
@@ -662,3 +664,5 @@ template <typename SampleType> class MultiBandN {
 };
 
 } // namespace LinkwitzRiley
+} // namespace audio
+} // namespace phu

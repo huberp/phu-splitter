@@ -1,10 +1,13 @@
 #pragma once
 
-#include "../lib/FFTProcessor.h"
+#include "../lib/audio/FFTProcessor.h"
 #include "BandControlStrip.h"
+#include "BandWaveformDisplay.h"
 #include "CrossoverFrequencyBar.h"
 #include "PresetStrip.h"
 #include <juce_audio_processors/juce_audio_processors.h>
+
+using phu::audio::FFTProcessor;
 
 class PhuSplitterAudioProcessor;
 
@@ -48,6 +51,7 @@ class PhuSplitterAudioProcessorEditor : public juce::AudioProcessorEditor,
     FFTProcessor outputSumFFT{12};
 
     // Spectrum display controls
+    juce::GroupComponent fftGroup;
     juce::Slider fftSizeSlider;
     juce::Label fftSizeLabel;
     juce::Slider attackSlider;
@@ -58,8 +62,19 @@ class PhuSplitterAudioProcessorEditor : public juce::AudioProcessorEditor,
     juce::Label freqSmoothLabel;
 
     // FFT enable toggles
+    juce::GroupComponent localFFTGroup;
     juce::ToggleButton inputFFTToggle;
     juce::ToggleButton outputFFTToggle;
+    
+    // Remote spectrum controls
+    juce::GroupComponent remoteFFTGroup;
+    juce::ToggleButton remoteFFTToggle;
+    
+    // Spectrum broadcast controls (broadcaster lives in processor)
+    juce::ToggleButton broadcastToggle;
+
+    // Rolling band waveform display (pre-gain + post-gain overlay)
+    BandWaveformDisplay bandWaveformDisplay;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PhuSplitterAudioProcessorEditor)
 };

@@ -1,9 +1,15 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #ifndef NDEBUG // Debug builds only
-#include "EditorLogger.h"
+#include "../lib/debug/EditorLogger.h"
+using phu::debug::EditorLogger;
 #endif
-#include "../lib/EventSource.h"
+#include "../lib/events/EventSource.h"
+
+using namespace phu::events;
+using namespace phu::audio::LinkwitzRiley;
+using phu::network::CommandType;
+using phu::network::SoloMutePayload;
 
 PhuSplitterAudioProcessor::PhuSplitterAudioProcessor()
     : AudioProcessor(BusesProperties()
@@ -47,14 +53,43 @@ PhuSplitterAudioProcessor::PhuSplitterAudioProcessor()
 }
 
 PhuSplitterAudioProcessor::~PhuSplitterAudioProcessor() {
+    // Stop broadcast timer and shutdown broadcasters
+    stopTimer();
+    m_commandBroadcaster.removeListener(this);
+    m_commandBroadcaster.shutdown();
+    m_spectrumBroadcaster.shutdown();
 }
 
 void PhuSplitterAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
+    (void)samplesPerBlock; // Unused parameter
     syncGlobals.updateSampleRate(sampleRate);
 
     // Reset spectrum display FIFOs on playback restart / sample rate change
     m_inputFifo.reset();
     m_outputSumFifo.reset();
+    m_broadcastFifo.reset();
+
+    // Reset per-band waveform FIFOs
+    for (auto& f : m_bandPreGainFifos) f.reset();
+    for (auto& f : m_bandPostGainFifos) f.reset();
+
+    // Initialize broadcasters (one-time setup, stays running)
+    if (!m_spectrumBroadcaster.isRunning()) {
+        if (m_spectrumBroadcaster.initialize()) {
+            m_spectrumBroadcaster.setReceiveEnabled(m_receiveEnabled.load());
+            m_spectrumBroadcaster.setBroadcastEnabled(m_broadcastEnabled.load());
+        }
+    }
+    if (!m_commandBroadcaster.isRunning()) {
+        if (m_commandBroadcaster.initialize()) {
+            m_commandBroadcaster.addListener(this);
+        }
+    }
+
+    // Start timer if either broadcast or receive is enabled
+    if ((m_broadcastEnabled.load() || m_receiveEnabled.load()) && !isTimerRunning()) {
+        startTimerHz(30); // 30 Hz for FFT processing
+    }
 
     // Read current crossover frequencies from parameters
     for (size_t i = 0; i < NUM_CROSSOVER_FREQS; ++i)
@@ -187,6 +222,12 @@ void PhuSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         // Apply band gains and solo/mute logic, then write each band to corresponding stereo output channel pair
         // Band 0 -> channels 0,1 (after input); Band 1 -> channels 2,3; etc.
         for (size_t band = 0; band < NUM_BANDS; ++band) {
+            // Store pre-gain samples for waveform display FIFO
+            if (i < kMaxBlockSize) {
+                m_preBandL[band][static_cast<size_t>(i)] = bandsL[band];
+                m_preBandR[band][static_cast<size_t>(i)] = bandsR[band];
+            }
+
             const int leftChannel = static_cast<int>(band * 2);
             const int rightChannel = leftChannel + 1;
 
@@ -214,6 +255,28 @@ void PhuSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     {
         const float* sumChannels[2] = { m_sumL.data(), m_sumR.data() };
         m_outputSumFifo.push(sumChannels, samplesToProcess);
+    }
+
+    // Push stereo output sum into broadcast FIFO (for headless broadcast FFT)
+    if (m_broadcastEnabled.load()) {
+        const float* sumChannels[2] = { m_sumL.data(), m_sumR.data() };
+        m_broadcastFifo.push(sumChannels, samplesToProcess);
+    }
+
+    // Push per-band samples to FIFOs for rolling waveform display
+    for (size_t band = 0; band < NUM_BANDS; ++band) {
+        // Pre-gain FIFO (from block buffers filled in sample loop)
+        const float* preChannels[2] = { m_preBandL[band].data(), m_preBandR[band].data() };
+        m_bandPreGainFifos[band].push(preChannels, samplesToProcess);
+
+        // Post-gain FIFO (read directly from output bus buffer)
+        const int leftCh = static_cast<int>(band * 2);
+        const int rightCh = leftCh + 1;
+        if (leftCh < totalOutputChannels && rightCh < totalOutputChannels) {
+            const float* postChannels[2] = { buffer.getReadPointer(leftCh),
+                                              buffer.getReadPointer(rightCh) };
+            m_bandPostGainFifos[band].push(postChannels, samplesToProcess);
+        }
     }
 
     // Mark end of processing
@@ -289,13 +352,21 @@ void PhuSplitterAudioProcessor::changeProgramName(int, const juce::String&) {
 void PhuSplitterAudioProcessor::getStateInformation(juce::MemoryBlock& destData) {
     auto state = apvts.copyState();
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
+    // Persist broadcast enabled state as attribute on root element
+    xml->setAttribute("broadcastEnabled", m_broadcastEnabled.load());
     copyXmlToBinary(*xml, destData);
 }
 
 void PhuSplitterAudioProcessor::setStateInformation(const void* data, int sizeInBytes) {
     std::unique_ptr<juce::XmlElement> xml(getXmlFromBinary(data, sizeInBytes));
-    if (xml && xml->hasTagName(apvts.state.getType()))
+    if (xml && xml->hasTagName(apvts.state.getType())) {
         apvts.replaceState(juce::ValueTree::fromXml(*xml));
+        // Restore broadcast enabled state
+        bool wasBroadcasting = xml->getBoolAttribute("broadcastEnabled", false);
+        if (wasBroadcasting) {
+            setBroadcastEnabled(true);
+        }
+    }
 }
 
 // ============================================================================
@@ -438,4 +509,120 @@ void PhuSplitterAudioProcessor::setBandMute(size_t bandIndex, bool mute) {
 // This creates new instances of the plugin
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
     return new PhuSplitterAudioProcessor();
+}
+
+// ============================================================================
+// Spectrum broadcasting
+// ============================================================================
+
+void PhuSplitterAudioProcessor::setBroadcastEnabled(bool enabled) {
+    if (enabled == m_broadcastEnabled.load())
+        return;
+
+    m_broadcastEnabled.store(enabled);
+
+    if (enabled) {
+        m_broadcastFifo.reset();
+        // Enable broadcasting in the broadcaster
+        if (m_spectrumBroadcaster.isRunning()) {
+            m_spectrumBroadcaster.setBroadcastEnabled(true);
+        }
+        // Start timer if not already running (needed for FFT processing)
+        if (!isTimerRunning()) {
+            startTimerHz(30);
+        }
+    } else {
+        // Disable broadcasting but keep receiving if enabled
+        m_spectrumBroadcaster.setBroadcastEnabled(false);
+        // Stop timer only if receive is also disabled
+        if (!m_receiveEnabled.load() && isTimerRunning()) {
+            stopTimer();
+        }
+    }
+}
+
+void PhuSplitterAudioProcessor::setReceiveEnabled(bool enabled) {
+    if (enabled == m_receiveEnabled.load())
+        return;
+
+    m_receiveEnabled.store(enabled);
+
+    if (enabled) {
+        // Enable receiving in the broadcaster
+        if (m_spectrumBroadcaster.isRunning()) {
+            m_spectrumBroadcaster.setReceiveEnabled(true);
+        }
+        // Start timer if not already running (needed for FFT processing even if just receiving)
+        if (!isTimerRunning()) {
+            startTimerHz(30);
+        }
+    } else {
+        // Disable receiving but keep broadcasting if enabled
+        m_spectrumBroadcaster.setReceiveEnabled(false);
+        // Stop timer only if broadcast is also disabled
+        if (!m_broadcastEnabled.load() && isTimerRunning()) {
+            stopTimer();
+        }
+    }
+}
+
+// ============================================================================
+// Command broadcasting
+// ============================================================================
+
+void PhuSplitterAudioProcessor::broadcastSoloCommand(size_t bandIndex, bool solo) {
+    if (bandIndex >= NUM_BANDS)
+        return;
+    m_commandBroadcaster.sendSoloCommand(static_cast<uint8_t>(bandIndex), solo);
+}
+
+void PhuSplitterAudioProcessor::broadcastMuteCommand(size_t bandIndex, bool mute) {
+    if (bandIndex >= NUM_BANDS)
+        return;
+    m_commandBroadcaster.sendMuteCommand(static_cast<uint8_t>(bandIndex), mute);
+}
+
+void PhuSplitterAudioProcessor::onCommandReceived(CommandType commandType,
+                                                  uint32_t /*senderID*/,
+                                                  const std::string& /*targetGroup*/,
+                                                  const uint8_t* payload,
+                                                  uint16_t payloadSize) {
+    // Dispatch received commands — called on receiver background thread.
+    // setBandSolo/setBandMute use setValueNotifyingHost which is thread-safe.
+    switch (commandType) {
+        case CommandType::Solo: {
+            if (payloadSize >= sizeof(SoloMutePayload)) {
+                auto p = reinterpret_cast<const SoloMutePayload*>(payload);
+                if (p->bandIndex < NUM_BANDS)
+                    setBandSolo(p->bandIndex, p->state != 0);
+            }
+            break;
+        }
+        case CommandType::Mute: {
+            if (payloadSize >= sizeof(SoloMutePayload)) {
+                auto p = reinterpret_cast<const SoloMutePayload*>(payload);
+                if (p->bandIndex < NUM_BANDS)
+                    setBandMute(p->bandIndex, p->state != 0);
+            }
+            break;
+        }
+        default:
+            break; // Unknown command — ignore
+    }
+}
+
+void PhuSplitterAudioProcessor::timerCallback() {
+    // Process broadcast FFT from dedicated FIFO (always process for local visualization)
+    m_broadcastFFT.process(m_broadcastFifo);
+
+    // Broadcast computed spectrum only if broadcasting is enabled
+    if (m_broadcastEnabled.load()) {
+        const float* magnitudes = m_broadcastFFT.getMagnitudeSpectrum();
+        int numBins = m_broadcastFFT.getNumBins();
+        float sampleRate = static_cast<float>(getSampleRate());
+
+        if (numBins > 0 && sampleRate > 0.0f) {
+            m_spectrumBroadcaster.broadcastSpectrum(magnitudes, numBins, sampleRate);
+        }
+    }
 }

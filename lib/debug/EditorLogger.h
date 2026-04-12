@@ -7,8 +7,11 @@
 #include <juce_core/juce_core.h>
 #include <juce_gui_basics/juce_gui_basics.h>
 
-// Forward declaration
+// Forward declaration (PhuSplitterAudioProcessorEditor is in global namespace, not phu::debug)
 class PhuSplitterAudioProcessorEditor;
+
+namespace phu {
+namespace debug {
 
 /**
  * EditorLogger
@@ -101,6 +104,9 @@ class EditorLogger : public juce::Logger, public juce::AsyncUpdater {
         if ((loggerPtr) != nullptr)                                                                \
             (loggerPtr)->logMessage(msg);                                                          \
     } while (0)
+
+} // namespace debug
+} // namespace phu
 
 #else // Release builds
 

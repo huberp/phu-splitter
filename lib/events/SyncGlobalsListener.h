@@ -2,6 +2,9 @@
 
 #include "Event.h"
 
+namespace phu {
+namespace events {
+
 /**
  * BPM Changed Event
  * Fired when DAW tempo changes
@@ -75,3 +78,6 @@ class GlobalsEventListener {
         (void)event;
     }
 };
+
+} // namespace events
+} // namespace phu

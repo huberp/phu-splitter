@@ -1,8 +1,11 @@
 #ifndef NDEBUG // Debug builds only
 
 #include "EditorLogger.h"
-#include "PluginEditor.h"
+#include "../../src/PluginEditor.h"
 #include <cstring>
+
+namespace phu {
+namespace debug {
 
 void EditorLogger::setEditor(PhuSplitterAudioProcessorEditor* newEditor) {
     editor = newEditor;
@@ -120,5 +123,8 @@ void EditorLogger::handleAsyncUpdate() {
             requestAsyncUpdate();
     }
 }
+
+} // namespace debug
+} // namespace phu
 
 #endif // !NDEBUG
