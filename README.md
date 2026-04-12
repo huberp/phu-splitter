@@ -16,6 +16,11 @@ Each band is output as a separate stereo channel, enabling multiband processing 
 - **Full DAW automation** — crossover frequencies are exposed as automatable parameters
 - **State save/restore** — all settings are persisted with the DAW session
 
+## Installation (Windows)
+
+> **Prerequisite:** The plugin requires the **Microsoft Visual C++ 2015–2022 Redistributable (x64)** to be installed on the host machine.
+> Download: [vc_redist.x64.exe](https://aka.ms/vs/17/release/vc_redist.x64.exe) — already present if Visual Studio 2019 or 2022 is installed.
+
 ## Build (CMake + Visual Studio)
 
 This repo is set up for CMake presets.
