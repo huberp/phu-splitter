@@ -1,5 +1,5 @@
 #include "CrossoverFrequencyBar.h"
-#include "../lib/audio/NoteToFreq.h"
+#include "audio/NoteToFreq.h"
 #include "PluginProcessor.h"
 
 using phu::audio::NoteToFreq;

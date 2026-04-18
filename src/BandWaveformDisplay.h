@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../lib/audio/AudioSampleFifo.h"
+#include "audio/AudioSampleFifo.h"
 #include <array>
 #include <juce_gui_basics/juce_gui_basics.h>
 
