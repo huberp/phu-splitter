@@ -11,7 +11,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 
 // Forward declarations
-#if PHU_DEBUG_UI // Debug builds only
+#ifndef NDEBUG // Debug builds only
 namespace phu { namespace debug { class EditorLogger; } }
 #endif
 
@@ -56,7 +56,7 @@ class PhuSplitterAudioProcessor : public juce::AudioProcessor,
     void getStateInformation(juce::MemoryBlock& destData) override;
     void setStateInformation(const void* data, int sizeInBytes) override;
 
-#if PHU_DEBUG_UI // Debug builds only
+#ifndef NDEBUG // Debug builds only
     // Get the editor logger (for editor registration)
     phu::debug::EditorLogger* getEditorLogger() const {
         return editorLogger.get();
@@ -151,7 +151,7 @@ class PhuSplitterAudioProcessor : public juce::AudioProcessor,
     // DAW synchronization globals (each instance has its own)
     phu::events::SyncGlobals syncGlobals;
 
-#if PHU_DEBUG_UI // Debug builds only
+#ifndef NDEBUG // Debug builds only
     // Logger for editor log view (debug builds only)
     std::unique_ptr<phu::debug::EditorLogger> editorLogger;
 #endif

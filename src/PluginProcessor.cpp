@@ -1,6 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
-#if PHU_DEBUG_UI // Debug builds only
+#ifndef NDEBUG // Debug builds only
 #include "debug/EditorLogger.h"
 using phu::debug::EditorLogger;
 #endif
@@ -21,7 +21,7 @@ PhuSplitterAudioProcessor::PhuSplitterAudioProcessor()
                          .withOutput("Band 5", juce::AudioChannelSet::stereo(), true)
                          .withOutput("Band 6", juce::AudioChannelSet::stereo(), true)
                          .withOutput("Band 7", juce::AudioChannelSet::stereo(), true))
-#if PHU_DEBUG_UI // Debug builds only
+#ifndef NDEBUG // Debug builds only
       ,
       editorLogger(std::make_unique<EditorLogger>())
 #endif
@@ -47,7 +47,7 @@ PhuSplitterAudioProcessor::PhuSplitterAudioProcessor()
     m_multiBand.initialize(LinkwitzRiley::Slope::DB48, DEFAULT_CROSSOVER_FREQS.data(),
                            NUM_CROSSOVER_FREQS, 44100.0f);
 
-#if PHU_DEBUG_UI // Debug builds only
+#ifndef NDEBUG // Debug builds only
     LOG_MESSAGE(editorLogger.get(), "Audio processing plugin initialized");
 #endif
 }
@@ -148,7 +148,7 @@ void PhuSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // Update DAW globals
     syncGlobals.updateDAWGlobals(buffer, midiMessages, positionInfo);
 
-#if PHU_DEBUG_UI // Debug builds only
+#ifndef NDEBUG // Debug builds only
     // Test logging (can be removed later)
     const auto currentRun = syncGlobals.getCurrentRun();
     if (currentRun % 1000 == 0) {
@@ -281,7 +281,7 @@ void PhuSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 juce::AudioProcessorEditor* PhuSplitterAudioProcessor::createEditor() {
     auto* editor = new PhuSplitterAudioProcessorEditor(*this);
 
-#if PHU_DEBUG_UI // Debug builds only
+#ifndef NDEBUG // Debug builds only
     // Register editor as log sink
     if (editorLogger) {
         editorLogger->setSink(editor);

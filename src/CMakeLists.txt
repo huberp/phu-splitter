@@ -41,9 +41,6 @@ if(WIN32)
     target_compile_definitions(phu-splitter PUBLIC NOMINMAX)
 endif()
 
-target_compile_definitions(phu-splitter PRIVATE
-    $<$<CONFIG:Debug>:PHU_DEBUG_UI=1>
-)
 
 target_link_libraries(phu-splitter
     PRIVATE

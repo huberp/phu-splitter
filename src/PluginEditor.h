@@ -6,7 +6,7 @@
 #include "CrossoverFrequencyBar.h"
 #include "PresetStrip.h"
 #include <juce_audio_processors/juce_audio_processors.h>
-#if PHU_DEBUG_UI
+#ifndef NDEBUG
 #include "debug/DebugLogSink.h"
 #include "debug/DebugLogEventQueue.h"
 #endif
@@ -17,7 +17,7 @@ class PhuSplitterAudioProcessor;
 
 class PhuSplitterAudioProcessorEditor : public juce::AudioProcessorEditor,
                                         public juce::Timer
-#if PHU_DEBUG_UI
+#ifndef NDEBUG
                                         , public DebugLogSink
 #endif
 {
@@ -29,7 +29,7 @@ class PhuSplitterAudioProcessorEditor : public juce::AudioProcessorEditor,
     void resized() override;
     void timerCallback() override;
 
-#if PHU_DEBUG_UI // Debug builds only
+#ifndef NDEBUG // Debug builds only
     // DebugLogSink interface
     void onLogMessage(const juce::String& message) override;
 
@@ -50,7 +50,7 @@ class PhuSplitterAudioProcessorEditor : public juce::AudioProcessorEditor,
     CrossoverFrequencyBar crossoverBar;
     juce::Label crossoverLabel;
 
-#if PHU_DEBUG_UI // Debug builds only
+#ifndef NDEBUG // Debug builds only
     // Debug log text area (only in debug builds)
     juce::TextEditor logTextEditor;
     juce::Label logLabel;

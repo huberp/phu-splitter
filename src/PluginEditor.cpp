@@ -1,5 +1,5 @@
 #include "PluginEditor.h"
-#if PHU_DEBUG_UI
+#ifndef NDEBUG
 #include "debug/EditorLogger.h"
 #endif
 #include "PluginProcessor.h"
@@ -134,7 +134,7 @@ PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudi
     broadcastToggle.onClick = [this]() {
         bool enabled = broadcastToggle.getToggleState();
         audioProcessor.setBroadcastEnabled(enabled);
-#if PHU_DEBUG_UI
+#ifndef NDEBUG
         if (enabled) {
             addLogMessage("Spectrum broadcasting enabled (ID: " + 
                          juce::String(audioProcessor.getSpectrumBroadcaster().getInstanceID()) + ")");
@@ -164,7 +164,7 @@ PhuSplitterAudioProcessorEditor::PhuSplitterAudioProcessorEditor(PhuSplitterAudi
     // Start FFT processing timer at 60 Hz (UI thread)
     startTimerHz(60);
 
-#if PHU_DEBUG_UI // Debug builds only
+#ifndef NDEBUG // Debug builds only
     // Set up debug log label
     logLabel.setText("Debug Log", juce::dontSendNotification);
     logLabel.setJustificationType(juce::Justification::centredLeft);
@@ -205,7 +205,7 @@ PhuSplitterAudioProcessorEditor::~PhuSplitterAudioProcessorEditor() {
 
     // Broadcaster is owned by processor — do NOT shutdown here
 
-#if PHU_DEBUG_UI // Debug builds only
+#ifndef NDEBUG // Debug builds only
     // Unregister from logger
     if (auto* logger = audioProcessor.getEditorLogger()) {
         logger->setSink(nullptr);
@@ -317,7 +317,7 @@ void PhuSplitterAudioProcessorEditor::resized() {
 
     area.removeFromTop(kGroupSpacing);
 
-#if PHU_DEBUG_UI // Debug builds only
+#ifndef NDEBUG // Debug builds only
     // Debug log section below (debug builds only)
     logLabel.setBounds(area.removeFromTop(25));
     area.removeFromTop(5);
@@ -353,7 +353,7 @@ void PhuSplitterAudioProcessorEditor::timerCallback() {
                                         audioProcessor.getBandPostGainFifos());
     bandWaveformDisplay.repaint();
 
-#if PHU_DEBUG_UI
+#ifndef NDEBUG
     // Drain debug log queue from EditorLogger
     if (auto* logger = audioProcessor.getEditorLogger()) {
         std::array<DebugLogEventQueue::LogEntry, DebugLogEventQueue::BATCH_SIZE> batch;
@@ -365,7 +365,7 @@ void PhuSplitterAudioProcessorEditor::timerCallback() {
 #endif
 }
 
-#if PHU_DEBUG_UI // Debug builds only
+#ifndef NDEBUG // Debug builds only
 void PhuSplitterAudioProcessorEditor::onLogMessage(const juce::String& message) {
     addLogMessage(message);
 }
