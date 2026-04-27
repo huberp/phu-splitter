@@ -24,18 +24,6 @@ target_sources(phu-splitter PRIVATE
     PresetManager.h
     PresetStrip.cpp
     PresetStrip.h
-    
-    # Debug components (moved to lib/debug/)
-    ../lib/debug/EditorLogger.cpp
-    ../lib/debug/EditorLogger.h
-    
-    # Network components with .cpp implementations
-    ../lib/network/MulticastBroadcasterBase.cpp
-    ../lib/network/MulticastBroadcasterBase.h
-    ../lib/network/SpectrumBroadcaster.cpp
-    ../lib/network/SpectrumBroadcaster.h
-    ../lib/network/CommandBroadcaster.cpp
-    ../lib/network/CommandBroadcaster.h
 )
 
 target_compile_definitions(phu-splitter PUBLIC
@@ -53,9 +41,11 @@ if(WIN32)
     target_compile_definitions(phu-splitter PUBLIC NOMINMAX)
 endif()
 
+
 target_link_libraries(phu-splitter
     PRIVATE
-        EventSystem
+        PhuAudioLib
+        PhuNetworkLib
         juce::juce_audio_processors
         juce::juce_dsp
     PUBLIC

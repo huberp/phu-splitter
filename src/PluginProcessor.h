@@ -1,11 +1,11 @@
 #pragma once
 
-#include "../lib/audio/AudioSampleFifo.h"
-#include "../lib/audio/FFTProcessor.h"
-#include "../lib/audio/LinkwitzRileyFilter.h"
-#include "../lib/events/SyncGlobals.h"
-#include "../lib/network/CommandBroadcaster.h"
-#include "../lib/network/SpectrumBroadcaster.h"
+#include "audio/AudioSampleFifo.h"
+#include "audio/FFTProcessor.h"
+#include "audio/LinkwitzRileyFilter.h"
+#include "events/SyncGlobals.h"
+#include "network/CommandBroadcaster.h"
+#include "network/SpectrumBroadcaster.h"
 #include <array>
 #include <atomic>
 #include <juce_audio_processors/juce_audio_processors.h>
@@ -17,7 +17,7 @@ namespace phu { namespace debug { class EditorLogger; } }
 
 // Use namespaces
 using phu::audio::AudioSampleFifo;
-using phu::audio::FFTProcessor;
+using FFTProcessor = phu::audio::FFTProcessor<float>;
 using phu::events::GlobalsEventListener;
 using phu::network::CommandListener;
 using phu::network::CommandBroadcaster;

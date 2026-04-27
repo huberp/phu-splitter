@@ -1,10 +1,10 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #ifndef NDEBUG // Debug builds only
-#include "../lib/debug/EditorLogger.h"
+#include "debug/EditorLogger.h"
 using phu::debug::EditorLogger;
 #endif
-#include "../lib/events/EventSource.h"
+#include "events/EventSource.h"
 
 using namespace phu::events;
 using namespace phu::audio::LinkwitzRiley;
@@ -105,11 +105,6 @@ void PhuSplitterAudioProcessor::prepareToPlay(double sampleRate, int samplesPerB
     m_multiBand.setParams(LinkwitzRiley::Slope::DB48, currentFreqs.data(), NUM_CROSSOVER_FREQS,
                           static_cast<float>(sampleRate));
     m_multiBand.reset();
-
-#ifndef NDEBUG // Debug builds only
-    if (editorLogger)
-        editorLogger->markCurrentThreadAsAudioThread();
-#endif
 }
 
 void PhuSplitterAudioProcessor::releaseResources() {
@@ -287,9 +282,9 @@ juce::AudioProcessorEditor* PhuSplitterAudioProcessor::createEditor() {
     auto* editor = new PhuSplitterAudioProcessorEditor(*this);
 
 #ifndef NDEBUG // Debug builds only
-    // Register editor with logger
+    // Register editor as log sink
     if (editorLogger) {
-        editorLogger->setEditor(editor);
+        editorLogger->setSink(editor);
         LOG_MESSAGE(editorLogger.get(), "Editor opened");
     }
 #endif

@@ -1,6 +1,6 @@
 #include "PluginEditor.h"
 #ifndef NDEBUG
-#include "../lib/debug/EditorLogger.h"
+#include "debug/EditorLogger.h"
 #endif
 #include "PluginProcessor.h"
 
@@ -208,7 +208,7 @@ PhuSplitterAudioProcessorEditor::~PhuSplitterAudioProcessorEditor() {
 #ifndef NDEBUG // Debug builds only
     // Unregister from logger
     if (auto* logger = audioProcessor.getEditorLogger()) {
-        logger->clearEditor();
+        logger->setSink(nullptr);
     }
 #endif
 }
@@ -352,9 +352,24 @@ void PhuSplitterAudioProcessorEditor::timerCallback() {
     bandWaveformDisplay.updateFromFifos(audioProcessor.getBandPreGainFifos(),
                                         audioProcessor.getBandPostGainFifos());
     bandWaveformDisplay.repaint();
+
+#ifndef NDEBUG
+    // Drain debug log queue from EditorLogger
+    if (auto* logger = audioProcessor.getEditorLogger()) {
+        std::array<DebugLogEventQueue::LogEntry, DebugLogEventQueue::BATCH_SIZE> batch;
+        juce::Span<DebugLogEventQueue::LogEntry> span(batch);
+        int count = logger->getQueueBatch(span, DebugLogEventQueue::BATCH_SIZE);
+        for (int i = 0; i < count; ++i)
+            addLogMessage(batch[i].asString());
+    }
+#endif
 }
 
 #ifndef NDEBUG // Debug builds only
+void PhuSplitterAudioProcessorEditor::onLogMessage(const juce::String& message) {
+    addLogMessage(message);
+}
+
 void PhuSplitterAudioProcessorEditor::addLogMessage(const juce::String& message) {
     // Get current time
     auto time = juce::Time::getCurrentTime();

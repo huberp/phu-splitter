@@ -1,18 +1,26 @@
 #pragma once
 
-#include "../lib/audio/FFTProcessor.h"
+#include "audio/FFTProcessor.h"
 #include "BandControlStrip.h"
 #include "BandWaveformDisplay.h"
 #include "CrossoverFrequencyBar.h"
 #include "PresetStrip.h"
 #include <juce_audio_processors/juce_audio_processors.h>
+#ifndef NDEBUG
+#include "debug/DebugLogSink.h"
+#include "debug/DebugLogEventQueue.h"
+#endif
 
-using phu::audio::FFTProcessor;
+using FFTProcessor = phu::audio::FFTProcessor<float>;
 
 class PhuSplitterAudioProcessor;
 
 class PhuSplitterAudioProcessorEditor : public juce::AudioProcessorEditor,
-                                        public juce::Timer {
+                                        public juce::Timer
+#ifndef NDEBUG
+                                        , public DebugLogSink
+#endif
+{
   public:
     PhuSplitterAudioProcessorEditor(PhuSplitterAudioProcessor&);
     ~PhuSplitterAudioProcessorEditor() override;
@@ -22,6 +30,9 @@ class PhuSplitterAudioProcessorEditor : public juce::AudioProcessorEditor,
     void timerCallback() override;
 
 #ifndef NDEBUG // Debug builds only
+    // DebugLogSink interface
+    void onLogMessage(const juce::String& message) override;
+
     // Add log message to debug window
     void addLogMessage(const juce::String& message);
 #endif
