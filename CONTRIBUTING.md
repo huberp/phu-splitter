@@ -31,6 +31,17 @@ Additional options and presets:
 
 ---
 
+## CI / Releases
+
+GitHub Actions workflows live in `.github/workflows/`:
+
+- `build.yml` — runs on pushes to `main`, pull requests and manual dispatch; builds Windows x64 (with pluginval), Linux x64/arm64 and macOS arm64/x64 (with pluginval).
+- `build-windows-vst3.yml`, `build-linux.yml`, `build-macos.yml` — reusable per-platform workflows (`workflow_call`, inputs `arch`, `run-pluginval`, `upload-artifact`, `artifact-name`, `ref-name`) used by both `build.yml` and `release.yml`. They configure and build with the CMake presets, optionally validate with pluginval, and package a zip when `ref-name` is set.
+- `generate-pdf.yml` — reusable workflow that converts `README.md` to `README.pdf` for the release zips.
+- `release.yml` — triggered by pushing a tag matching `v[0-9]*`, or manually via **Run workflow** with a required `tag` input (the tag is created on the selected commit if it doesn't exist yet). It builds all platforms and publishes a GitHub release. See [docs/RELEASE.md](docs/RELEASE.md).
+
+---
+
 ## Implementation Details
 
 - **Linkwitz-Riley filters**: 8th order (48 dB/octave) crossovers implemented using cascaded biquad filters in Direct Form I

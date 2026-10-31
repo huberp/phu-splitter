@@ -14,14 +14,24 @@ jobs:
       arch: x64
       run-pluginval: true
 
-  build-linux:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Install Dependencies
-      run: sudo bash scripts/install-linux-deps.sh
-    - name: Configure CMake
-      run: cmake --preset linux-x64-vst3-release
-    - name: Build
-      run: cmake --build --preset linux-x64-vst3-release-build
+  build-linux-x64:
+    uses: ./.github/workflows/build-linux.yml
+    with:
+      arch: x64
+
+  build-linux-arm64:
+    uses: ./.github/workflows/build-linux.yml
+    with:
+      arch: arm64
+
+  build-macos-arm64:
+    uses: ./.github/workflows/build-macos.yml
+    with:
+      arch: arm64
+      run-pluginval: true
+
+  build-macos-x64:
+    uses: ./.github/workflows/build-macos.yml
+    with:
+      arch: x64
+      run-pluginval: true

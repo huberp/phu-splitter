@@ -25,8 +25,8 @@ on:
         default: 'windows-vst3'
       ref-name:
         description: >
-          Git ref (e.g. the tag) to check out and use for package file naming.
-          When empty the default ref is checked out and the packaging step is skipped.
+          Git ref name (e.g. the tag) used for package file naming.
+          When empty the packaging step is skipped.
         type: string
         default: ''
     outputs:
@@ -51,9 +51,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref-name }}
+        uses: actions/checkout@v7
 
       # -----------------------------------------------------------------------
       # Intel MKL — x64 only (Intel MKL has no ARM64 binaries)
@@ -61,7 +59,7 @@ jobs:
       - name: Cache Intel MKL NuGet package
         if: ${{ inputs.arch == 'x64' }}
         id: cache-mkl
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}\mkl_pkg
           key: intel-mkl-nuget-${{ env.MKL_NUGET_VERSION }}-win-x64
@@ -254,7 +252,7 @@ jobs:
           exit 0
 
       - name: Upload Validation Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ always() && inputs.run-pluginval }}
         with:
           name: validation-results-${{ inputs.arch }}
@@ -327,7 +325,7 @@ jobs:
 
       - name: Upload VST3 Artifact
         if: ${{ inputs.upload-artifact }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ inputs.artifact-name }}
           path: dist/*.zip
