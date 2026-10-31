@@ -16,6 +16,10 @@ Each band is output as a separate stereo channel, enabling multiband processing 
 - **Full DAW automation** — crossover frequencies are exposed as automatable parameters
 - **State save/restore** — all settings are persisted with the DAW session
 
+## Releases
+
+Release zips for Windows (x64, ARM64), Linux (x64) and macOS (arm64, x64) are built by CI and published on the GitHub Releases page whenever a `v*` tag is pushed or the release workflow is run manually with a tag. See [docs/RELEASE.md](docs/RELEASE.md) and [CONTRIBUTING.md](CONTRIBUTING.md#ci--releases).
+
 ## Installation (Windows)
 
 > **Prerequisite:** The plugin requires the **Microsoft Visual C++ 2015–2022 Redistributable (x64)** to be installed on the host machine.

@@ -1,49 +1,65 @@
-name: Release
-
 on:
   push:
     tags:
-      - 'v*'
+      - 'v[0-9]*'
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to create release for (e.g., v1.0.0). Leave empty to use current branch/tag.'
-        required: false
+        description: 'Release tag (e.g. v1.2.3). Created on the selected branch/commit if it does not exist yet.'
+        required: true
         type: string
-      draft:
-        description: 'Create as draft release'
-        required: false
-        type: boolean
-        default: false
 
 permissions:
   contents: write
 
 jobs:
   # ---------------------------------------------------------------------------
-  # Resolve the checkout ref once; all build jobs consume the output
+  # Resolve the release tag; for manual runs create it if missing
   # ---------------------------------------------------------------------------
   prepare:
-    name: Resolve ref
+    name: Resolve release tag
     runs-on: ubuntu-latest
     outputs:
-      ref: ${{ steps.resolve.outputs.ref }}
-      version: ${{ steps.resolve.outputs.version }}
+      tag: ${{ steps.resolve.outputs.tag }}
     steps:
-      - name: Resolve ref
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Resolve (and create) tag
         id: resolve
-        shell: bash
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          if [ -n "${{ inputs.tag }}" ]; then
-            REF="${{ inputs.tag }}"
-          elif [ "${{ github.ref_type }}" == "tag" ]; then
-            REF="${{ github.ref_name }}"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            TAG="$INPUT_TAG"
           else
-            REF="${{ github.ref }}"
+            TAG="$GITHUB_REF_NAME"
           fi
-          echo "ref=$REF" >> $GITHUB_OUTPUT
-          echo "version=${REF#v}" >> $GITHUB_OUTPUT
-          echo "Resolved ref: $REF"
+
+          if ! [[ "$TAG" =~ ^v[0-9][A-Za-z0-9._-]*$ ]]; then
+            echo "ERROR: tag '$TAG' must look like v1.2.3 (or v1.2.3-rc1)"
+            exit 1
+          fi
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            if EXISTING=$(git rev-parse -q --verify "refs/tags/${TAG}^{commit}"); then
+              if [ "$EXISTING" != "$GITHUB_SHA" ]; then
+                echo "ERROR: tag $TAG already exists at $EXISTING, but this run is on $GITHUB_SHA."
+                echo "Run the workflow with the tag itself selected under 'Use workflow from'."
+                exit 1
+              fi
+              echo "Tag $TAG already exists at $GITHUB_SHA"
+            else
+              git tag "$TAG" "$GITHUB_SHA"
+              git push origin "refs/tags/$TAG"
+              echo "Created tag $TAG at $GITHUB_SHA"
+            fi
+          fi
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
   # ---------------------------------------------------------------------------
   # Build & package Windows x64 VST3
@@ -57,7 +73,7 @@ jobs:
       run-pluginval: true
       upload-artifact: true
       artifact-name: windows-x64-vst3
-      ref-name: ${{ needs.prepare.outputs.ref }}
+      ref-name: ${{ needs.prepare.outputs.tag }}
 
   # ---------------------------------------------------------------------------
   # Build & package Windows ARM64 VST3 (cross-compiled on x64 runner)
@@ -71,37 +87,105 @@ jobs:
       run-pluginval: false
       upload-artifact: true
       artifact-name: windows-arm64-vst3
-      ref-name: ${{ needs.prepare.outputs.ref }}
+      ref-name: ${{ needs.prepare.outputs.tag }}
 
   # ---------------------------------------------------------------------------
-  # Generate README.pdf, inject into all zips, publish GitHub Release
+  # Build & package Linux VST3
+  # ---------------------------------------------------------------------------
+  release-linux-x64:
+    name: Linux x64 VST3
+    needs: prepare
+    uses: ./.github/workflows/build-linux.yml
+    with:
+      arch: x64
+      run-pluginval: true
+      upload-artifact: true
+      artifact-name: linux-x64-vst3
+      ref-name: ${{ needs.prepare.outputs.tag }}
+
+  # ---------------------------------------------------------------------------
+  # Build & package macOS VST3 + AU (Apple Silicon)
+  # ---------------------------------------------------------------------------
+  release-macos-arm64:
+    name: macOS arm64 VST3/AU
+    needs: prepare
+    uses: ./.github/workflows/build-macos.yml
+    with:
+      arch: arm64
+      run-pluginval: true
+      upload-artifact: true
+      artifact-name: macos-arm64-plugin
+      ref-name: ${{ needs.prepare.outputs.tag }}
+
+  # ---------------------------------------------------------------------------
+  # Build & package macOS VST3 + AU (Intel)
+  # ---------------------------------------------------------------------------
+  release-macos-x64:
+    name: macOS x64 VST3/AU
+    needs: prepare
+    uses: ./.github/workflows/build-macos.yml
+    with:
+      arch: x64
+      run-pluginval: true
+      upload-artifact: true
+      artifact-name: macos-x64-plugin
+      ref-name: ${{ needs.prepare.outputs.tag }}
+
+  # ---------------------------------------------------------------------------
+  # Generate README.pdf
+  # ---------------------------------------------------------------------------
+  generate-pdf:
+    name: Generate README.pdf
+    uses: ./.github/workflows/generate-pdf.yml
+    with:
+      in-md: README.md
+
+  # ---------------------------------------------------------------------------
+  # Inject README.pdf into all zips, publish GitHub Release
   # ---------------------------------------------------------------------------
   publish-release:
     name: Publish GitHub Release
-    needs: [prepare, release-windows-x64, release-windows-arm64]
+    needs: [prepare, release-windows-x64, release-windows-arm64, release-linux-x64, release-macos-arm64, release-macos-x64, generate-pdf]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.prepare.outputs.ref }}
+        uses: actions/checkout@v7
 
       - name: Download Windows x64 artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: windows-x64-vst3
           path: dist/
 
       - name: Download Windows ARM64 artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: windows-arm64-vst3
           path: dist/
 
-      - name: Generate README.pdf
-        run: |
-          npm install -g md-to-pdf
-          md-to-pdf README.md --dest README.pdf
+      - name: Download Linux x64 artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: linux-x64-vst3
+          path: dist/
+
+      - name: Download macOS arm64 artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: macos-arm64-plugin
+          path: dist/
+
+      - name: Download macOS x64 artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: macos-x64-plugin
+          path: dist/
+
+      - name: Download README.pdf artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: pdf
+          path: .
 
       - name: Inject README.pdf into all release zips
         run: |
@@ -113,30 +197,44 @@ jobs:
       - name: List release assets
         run: ls -lh dist/
 
-      # Pin to v2.4.2 to avoid retry loop bug in v2.5.0+ (see https://github.com/softprops/action-gh-release/issues/704)
-      - name: Create Release
-        uses: softprops/action-gh-release@v2.4.2
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ needs.prepare.outputs.ref }}
-          name: phu-splitter ${{ needs.prepare.outputs.ref }}
-          files: dist/*.zip
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          name: phu-splitter ${{ needs.prepare.outputs.tag }}
+          draft: false
+          prerelease: ${{ contains(needs.prepare.outputs.tag, '-') }}
           body: |
+            ## phu-splitter ${{ needs.prepare.outputs.tag }}
+
             ### Installation
 
             **Windows x64** — download `PHU-SPLITTER-windows-x64-*.zip`, extract and copy
-            `phu-splitter.vst3` to `C:\Program Files\Common Files\VST3\`.
+            `PHU SPLITTER.vst3` to `C:\Program Files\Common Files\VST3\`.
 
             **Windows ARM64** — download `PHU-SPLITTER-windows-arm64-*.zip`, extract and copy
-            `phu-splitter.vst3` to `C:\Program Files\Common Files\VST3\`.
+            `PHU SPLITTER.vst3` to `C:\Program Files\Common Files\VST3\`.
 
-            Each zip contains the `.vst3` bundle and a `README.pdf` with full documentation.
+            **Linux x64** — download `PHU-SPLITTER-linux-x64-*.zip`, extract and copy
+            `PHU SPLITTER.vst3` to `~/.vst3/`.
+
+            **macOS (Apple Silicon)** — download `PHU-SPLITTER-macos-arm64-*.zip`, extract and copy
+            `PHU SPLITTER.vst3` to `~/Library/Audio/Plug-Ins/VST3/` and
+            `PHU SPLITTER.component` to `~/Library/Audio/Plug-Ins/Components/`.
+
+            **macOS (Intel)** — download `PHU-SPLITTER-macos-x64-*.zip` and install as above.
+
+            > The macOS builds are not code-signed or notarized. If Gatekeeper blocks the plugin, run
+            > `xattr -dr com.apple.quarantine "<plugin bundle>"` on the extracted bundle.
+
+            Each zip contains the plugin bundle(s) and a `README.pdf` with full documentation.
 
             ### Prerequisite (Windows)
 
             Requires the [Visual C++ 2015–2022 Redistributable (x64)](https://aka.ms/vs/17/release/vc_redist.x64.exe).
-          generate_release_notes: true
-          draft: ${{ inputs.draft || false }}
-          prerelease: ${{ contains(needs.prepare.outputs.ref, 'alpha') || contains(needs.prepare.outputs.ref, 'beta') || contains(needs.prepare.outputs.ref, 'rc') }}
-          fail_on_unmatched_files: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            ### What's Changed
+
+            See [CHANGELOG](https://github.com/huberp/phu-splitter/commits/${{ needs.prepare.outputs.tag }})
+            or compare against the previous tag.
+          files: dist/*.zip
