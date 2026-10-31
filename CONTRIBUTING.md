@@ -25,6 +25,7 @@ Build output goes to `build/<preset-name>/`. macOS presets build VST3 and AU; th
 
 Additional options and presets:
 - `-DENABLE_STRICT_WARNINGS=ON` — strict compiler warnings for this project's code (not for fetched dependencies)
+- `-DUSE_INTEL_MKL=OFF` — don't use Intel MKL for the FFT (default `ON`; falls back to JUCE's FFT when MKL isn't found). Set `MKLROOT` to point to an MKL install; on Windows the NuGet cache is detected automatically
 - `--preset sanitizers` / `--preset sanitizers-build` — Address + Undefined Behavior sanitizers
 - `--preset coverage` / `--preset coverage-build` — coverage instrumentation
 
@@ -50,3 +51,4 @@ Additional options and presets:
 | `src/PresetStrip.cpp/.h` | Inline preset navigation UI |
 | `lib/NoteToFreq.h` | Musical note name → frequency converter |
 | `lib/` | Event system library (see `lib/README.md`) |
+| `cmake/ConfigureIntelMKL.cmake` | Optional Intel MKL FFT acceleration |

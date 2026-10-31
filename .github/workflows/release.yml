@@ -51,56 +51,13 @@ jobs:
   release-windows-x64:
     name: Windows x64 VST3
     needs: prepare
-    runs-on: windows-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.prepare.outputs.ref }}
-
-      - name: Configure CMake (x64)
-        run: cmake --preset windows-x64-vst3-release
-
-      - name: Build
-        run: cmake --build --preset windows-x64-vst3-release-build
-
-      - name: Validate VST3 with pluginval
-        shell: pwsh
-        run: |
-          Write-Host "Downloading pluginval..."
-          Invoke-WebRequest `
-            -Uri "https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_Windows.zip" `
-            -OutFile "pluginval.zip"
-          Expand-Archive -Path "pluginval.zip" -DestinationPath "pluginval" -Force
-
-          $vst3 = Get-ChildItem -Recurse `
-            -Path "build\windows-x64-vst3-release" `
-            -Filter "*.vst3" -Directory | Select-Object -First 1 -ExpandProperty FullName
-
-          Write-Host "Validating: $vst3"
-          .\pluginval\pluginval.exe --strictness-level 5 --validate-in-process --validate "$vst3"
-
-      - name: Package VST3
-        shell: pwsh
-        run: |
-          $version = "${{ needs.prepare.outputs.version }}"
-          $zipName = "PHU-SPLITTER-windows-x64-${version}.zip"
-          New-Item -ItemType Directory -Force -Path dist | Out-Null
-          New-Item -ItemType Directory -Force -Path staging | Out-Null
-
-          $vst3 = Get-ChildItem -Recurse `
-            -Path "build\windows-x64-vst3-release" `
-            -Filter "*.vst3" -Directory | Select-Object -First 1
-
-          Copy-Item -Path $vst3.FullName -Destination "staging" -Recurse
-          Compress-Archive -Path "staging\*" -DestinationPath "dist\$zipName" -Force
-          Write-Host "Created dist\$zipName"
-
-      - name: Upload Windows x64 artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-x64-vst3
-          path: dist/*.zip
+    uses: ./.github/workflows/build-windows-vst3.yml
+    with:
+      arch: x64
+      run-pluginval: true
+      upload-artifact: true
+      artifact-name: windows-x64-vst3
+      ref-name: ${{ needs.prepare.outputs.ref }}
 
   # ---------------------------------------------------------------------------
   # Build & package Windows ARM64 VST3 (cross-compiled on x64 runner)
@@ -108,40 +65,13 @@ jobs:
   release-windows-arm64:
     name: Windows ARM64 VST3
     needs: prepare
-    runs-on: windows-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.prepare.outputs.ref }}
-
-      - name: Configure CMake (ARM64 cross-compile)
-        run: cmake --preset windows-arm64-vst3-release
-
-      - name: Build
-        run: cmake --build --preset windows-arm64-vst3-release-build
-
-      - name: Package VST3
-        shell: pwsh
-        run: |
-          $version = "${{ needs.prepare.outputs.version }}"
-          $zipName = "PHU-SPLITTER-windows-arm64-${version}.zip"
-          New-Item -ItemType Directory -Force -Path dist | Out-Null
-          New-Item -ItemType Directory -Force -Path staging | Out-Null
-
-          $vst3 = Get-ChildItem -Recurse `
-            -Path "build\windows-arm64-vst3-release" `
-            -Filter "*.vst3" -Directory | Select-Object -First 1
-
-          Copy-Item -Path $vst3.FullName -Destination "staging" -Recurse
-          Compress-Archive -Path "staging\*" -DestinationPath "dist\$zipName" -Force
-          Write-Host "Created dist\$zipName"
-
-      - name: Upload Windows ARM64 artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-arm64-vst3
-          path: dist/*.zip
+    uses: ./.github/workflows/build-windows-vst3.yml
+    with:
+      arch: ARM64
+      run-pluginval: false
+      upload-artifact: true
+      artifact-name: windows-arm64-vst3
+      ref-name: ${{ needs.prepare.outputs.ref }}
 
   # ---------------------------------------------------------------------------
   # Generate README.pdf, inject into all zips, publish GitHub Release

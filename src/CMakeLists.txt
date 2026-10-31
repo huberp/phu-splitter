@@ -45,3 +45,10 @@ target_link_libraries(phu-splitter
         juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags
 )
+
+# Intel MKL support
+if(USE_INTEL_MKL AND MKL_FOUND)
+    target_compile_definitions(phu-splitter PRIVATE JUCE_DSP_USE_INTEL_MKL=1)
+    target_link_libraries(phu-splitter PRIVATE PHU_MKL PUBLIC juce::juce_recommended_lto_flags)
+    message(STATUS "Intel MKL FFT support enabled for phu-splitter")
+endif()

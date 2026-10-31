@@ -12,12 +12,25 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Intel MKL Configuration (optional)
+# Works with either:
+# 1) NuGet package layout: .../intelmkl.static.win-x64/<version>/build/native
+# 2) oneAPI layout:        .../oneapi/mkl/latest
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+option(USE_INTEL_MKL "Use Intel MKL for FFT acceleration" ON)
+set(MKLROOT "" CACHE PATH "Path to MKL root (NuGet build/native or oneAPI mkl root)")
+
+include(ConfigureIntelMKL)
+
+if(USE_INTEL_MKL)
+    configure_intel_mkl(PHU_MKL)
+endif()
+
 # JUCE feature flags and build options; included before the fetch so that the
 # options and compile definitions also reach JUCE and phu-audio-lib targets.
 include(cmake/juce_config.cmake)
 
 # Fetch dependencies (reusable helpers in cmake/PhuDependencies.cmake)
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(PhuDependencies)
 phu_fetch_juce(TAG 8.0.15)
 phu_fetch_audio_lib(TAG main)

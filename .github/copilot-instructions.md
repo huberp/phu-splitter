@@ -9,6 +9,7 @@ This is a JUCE-based audio plugin project that requires specific dependencies on
 1. **Install dependencies first**: Run `sudo bash scripts/install-linux-deps.sh`
 2. **Dependencies are fetched by CMake**: JUCE (8.0.15) and phu-audio-lib are downloaded via FetchContent during the first configure (network access required); there are no submodules
 3. **Use the Linux preset**: Build with `cmake --preset linux-x64-vst3-release && cmake --build --preset linux-x64-vst3-release-build`
+4. **Intel MKL (optional)**: FFT acceleration is enabled via `MKLROOT`; disable with `-DUSE_INTEL_MKL=OFF`. If `MKLROOT` is not set, configure with `-DUSE_INTEL_MKL=OFF`; do not try to install or locate MKL automatically (without MKL, FFT falls back to JUCE)
 
 ### Build Timeouts
 

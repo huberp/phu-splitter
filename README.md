@@ -65,6 +65,16 @@ JUCE (8.0.15) and phu-audio-lib are fetched automatically by CMake during the fi
 
 The targets built by the presets are `phu-splitter_VST3` (and `phu-splitter_AU` on macOS).
 
+### Intel® MKL-accelerated FFT
+
+`USE_INTEL_MKL` is `ON` by default. At configure time CMake looks for Intel® MKL in this order: the `MKLROOT` CMake variable, the `MKLROOT` environment variable, then (Windows) the local NuGet cache (package `intelmkl.static.win-x64`). `MKLROOT` should point to either the oneAPI MKL root (`.../mkl/latest`) or the NuGet native root (`.../intelmkl.static.win-x64/<version>/build/native`).
+
+- **Found:** the plugin is compiled with `JUCE_DSP_USE_INTEL_MKL=1` and linked statically against MKL (sequential, no OpenMP runtime). The release builds for Windows x64 are built this way.
+- **Not found:** CMake prints a status message and falls back to JUCE's built-in FFT. The plugin behaves identically.
+- **Disable explicitly:** pass `-DUSE_INTEL_MKL=OFF`.
+
+Intel® MKL has no ARM64 binaries, so Windows ARM64 builds always use the JUCE FFT. The Linux release builds also use the JUCE FFT; to use MKL on Linux, install oneAPI MKL (static libraries under `$MKLROOT/lib/intel64`) and set `MKLROOT` before configuring.
+
 ## Audio Processing
 
 The plugin uses **Linkwitz-Riley crossover filters** to split the incoming stereo audio into 7 frequency bands:
