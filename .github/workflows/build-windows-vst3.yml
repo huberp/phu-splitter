@@ -1,0 +1,333 @@
+name: Build Windows VST3 (reusable)
+
+# Reusable workflow called by build.yml and release.yml.
+# Handles: Intel MKL install via NuGet (x64 only), CMake configure+build,
+# optional pluginval validation, optional packaging, optional artifact upload.
+
+on:
+  workflow_call:
+    inputs:
+      arch:
+        description: 'CMake target architecture — x64 or ARM64'
+        type: string
+        default: 'x64'
+      run-pluginval:
+        description: 'Run pluginval validation after build'
+        type: boolean
+        default: true
+      upload-artifact:
+        description: 'Upload the packaged VST3 as a workflow artifact'
+        type: boolean
+        default: false
+      artifact-name:
+        description: 'Name of the uploaded artifact (used when upload-artifact is true)'
+        type: string
+        default: 'windows-vst3'
+      ref-name:
+        description: >
+          Git ref (e.g. the tag) to check out and use for package file naming.
+          When empty the default ref is checked out and the packaging step is skipped.
+        type: string
+        default: ''
+    outputs:
+      validation-status:
+        description: 'pluginval result: passed | failed | no_plugin | no_pluginval | skipped'
+        value: ${{ jobs.build.outputs.validation-status }}
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    outputs:
+      validation-status: ${{ steps.validate.outputs.validation_status }}
+
+    env:
+      # Pin the Intel MKL NuGet version for reproducible, cacheable installs.
+      # Update this value to pick up a newer MKL release.
+      # Intel MKL has no ARM64 binaries; MKL is only installed when arch == x64.
+      MKL_NUGET_VERSION: '2026.0.0.901'
+      PRESET: windows-${{ inputs.arch == 'ARM64' && 'arm64' || 'x64' }}-vst3-release
+      BUILD_DIR: build/windows-${{ inputs.arch == 'ARM64' && 'arm64' || 'x64' }}-vst3-release
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref-name }}
+
+      # -----------------------------------------------------------------------
+      # Intel MKL — x64 only (Intel MKL has no ARM64 binaries)
+      # -----------------------------------------------------------------------
+      - name: Cache Intel MKL NuGet package
+        if: ${{ inputs.arch == 'x64' }}
+        id: cache-mkl
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}\mkl_pkg
+          key: intel-mkl-nuget-${{ env.MKL_NUGET_VERSION }}-win-x64
+
+      - name: Install Intel MKL via NuGet
+        if: ${{ inputs.arch == 'x64' && steps.cache-mkl.outputs.cache-hit != 'true' }}
+        shell: pwsh
+        run: |
+          nuget install  intelmkl.static.win-x64 `
+            -Version $env:MKL_NUGET_VERSION `
+            -OutputDirectory "$env:RUNNER_TEMP\mkl_pkg"
+
+      - name: Locate MKL package (x64)
+        if: ${{ inputs.arch == 'x64' }}
+        shell: pwsh
+        run: |
+          $cacheRoot = "$env:RUNNER_TEMP\mkl_pkg"
+          if (-not (Test-Path $cacheRoot)) {
+            throw "Intel MKL cache directory was not found at $cacheRoot"
+          }
+
+          $mklHeader = Get-ChildItem -Path $cacheRoot -Recurse -Filter "mkl.h" -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+          if (-not $mklHeader) {
+            throw "mkl.h was not found under $cacheRoot"
+          }
+
+          $mklRoot = if ($mklHeader.Directory.Name -ieq "include") {
+            Split-Path $mklHeader.Directory.FullName -Parent
+          } else {
+            throw "Found mkl.h at unexpected path '$($mklHeader.FullName)'"
+          }
+
+          $requiredLibs = @("mkl_core.lib", "mkl_intel_lp64.lib", "mkl_sequential.lib")
+          foreach ($requiredLib in $requiredLibs) {
+            $libPath = Join-Path $mklRoot "win-x64\$requiredLib"
+            if (-not (Test-Path $libPath)) {
+              throw "Required MKL static library '$requiredLib' was not found at '$libPath'"
+            }
+          }
+
+          echo "MKLROOT=$mklRoot" >> $env:GITHUB_ENV
+          Write-Host "MKL cache root: $cacheRoot"
+          Write-Host "MKLROOT set to: $mklRoot"
+
+      # -----------------------------------------------------------------------
+      # Build
+      # -----------------------------------------------------------------------
+      - name: Configure CMake
+        shell: pwsh
+        run: |
+          # ARM64: Intel MKL ships no ARM64 binaries, so explicitly disable it.
+          # x64:   MKLROOT is set by the preceding discovery step when MKL
+          #        is available; CMakeLists.txt falls back gracefully if not set.
+          $cmakeArgs = @("--preset", $env:PRESET)
+          if ("${{ inputs.arch }}" -eq "ARM64") {
+            $cmakeArgs += "-DUSE_INTEL_MKL=OFF"
+          } elseif ("${{ inputs.arch }}" -eq "x64") {
+            if (-not $env:MKLROOT) {
+              throw "MKL package discovery failed for x64: MKLROOT was not set."
+            }
+            $cmakeArgs += "-DMKLROOT=$env:MKLROOT"
+          }
+          cmake @cmakeArgs
+
+      - name: Build
+        run: cmake --build --preset ${{ env.PRESET }}-build
+
+      - name: Verify MKL static linking
+        if: ${{ inputs.arch == 'x64' }}
+        shell: pwsh
+        run: |
+          if (-not $env:MKLROOT) {
+            throw "MKLROOT was not set, so static MKL linking could not be configured."
+          }
+
+          $pluginBinary = Get-ChildItem -Path $env:BUILD_DIR -Recurse -File -Filter "*.vst3" | Select-Object -First 1
+          if (-not $pluginBinary) {
+            throw "Built VST3 binary (*.vst3) not found."
+          }
+
+          # Positive verification: check binary size (static MKL adds significant code)
+          $minExpectedSize = 5 * 1024 * 1024  # 5 MB
+          $binarySize = (Get-Item $pluginBinary.FullName).Length
+          if ($binarySize -lt $minExpectedSize) {
+            throw "Binary size ($([math]::Round($binarySize/1MB, 2)) MB) is below expected minimum ($([math]::Round($minExpectedSize/1MB, 2)) MB) for static MKL linking"
+          }
+
+          # Positive verification: search for MKL function patterns in binary
+          $mklPatterns = @("mkl_", "vml_", "vsl_")
+          $binaryBytes = [System.IO.File]::ReadAllBytes($pluginBinary.FullName)
+          $binaryText = [System.Text.Encoding]::ASCII.GetString($binaryBytes)
+          $foundMklPattern = $false
+          foreach ($pattern in $mklPatterns) {
+            if ($binaryText -match [regex]::Escape($pattern)) {
+              $foundMklPattern = $true
+              break
+            }
+          }
+          if (-not $foundMklPattern) {
+            throw "No MKL function patterns found in $($pluginBinary.Name). Static linking may have failed."
+          }
+
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+          if (-not (Test-Path $vswhere)) {
+            throw "vswhere.exe was not found at $vswhere"
+          }
+          $vsInstallPath = & $vswhere -latest -products * -property installationPath
+          if (-not $vsInstallPath) {
+            throw "Visual Studio installation not found."
+          }
+
+          $msvcToolsRoot = Join-Path $vsInstallPath "VC\Tools\MSVC"
+          $latestMsvcDir = Get-ChildItem -Path $msvcToolsRoot -Directory -ErrorAction SilentlyContinue |
+            Sort-Object { [version]$_.Name } -Descending |
+            Select-Object -First 1
+          if (-not $latestMsvcDir) {
+            throw "MSVC toolchain directory not found under $msvcToolsRoot"
+          }
+
+          $dumpbin = Join-Path $latestMsvcDir.FullName "bin\Hostx64\x64\dumpbin.exe"
+          if (-not (Test-Path $dumpbin)) {
+            throw "dumpbin.exe not found."
+          }
+
+          $dependents = (& $dumpbin /dependents $pluginBinary.FullName | Out-String)
+          $dllDependents = $dependents -split '\r?\n' |
+            ForEach-Object { $_.Trim() } |
+            Where-Object { $_ -match '\.dll$' } |
+            ForEach-Object { Split-Path $_ -Leaf }
+          if ($dllDependents | Where-Object { $_ -imatch '^(mkl_core\.dll|mkl_intel_lp64\.dll|mkl_sequential\.dll|libiomp5md\.dll)$' }) {
+            throw "The built plugin still depends on MKL/OpenMP runtime DLLs:`n$dependents"
+          }
+
+          Write-Host "Verified static MKL linkage for $($pluginBinary.FullName)"
+
+      # -----------------------------------------------------------------------
+      # Validation (optional)
+      # -----------------------------------------------------------------------
+      - name: Download pluginval
+        if: ${{ inputs.run-pluginval }}
+        shell: pwsh
+        run: |
+          Write-Host "Downloading pluginval..."
+          Invoke-WebRequest `
+            -Uri "https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_Windows.zip" `
+            -OutFile "pluginval.zip"
+          Write-Host "Extracting pluginval..."
+          Expand-Archive -Path "pluginval.zip" -DestinationPath "pluginval" -Force
+
+      - name: Validate VST3 Plugin
+        if: ${{ inputs.run-pluginval }}
+        id: validate
+        shell: bash
+        run: |
+          set +e
+
+          VST3_PATH=$(find $BUILD_DIR/src/phu-splitter_artefacts/Release/VST3 \
+            -name "*.vst3" -type d | head -n 1)
+
+          if [ -z "$VST3_PATH" ]; then
+            echo "ERROR: VST3 plugin not found!"
+            echo "validation_status=no_plugin" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Found VST3 plugin at: $VST3_PATH"
+
+          if [ ! -f "./pluginval/pluginval.exe" ]; then
+            echo "ERROR: pluginval.exe not found"
+            echo "validation_status=no_pluginval" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          mkdir -p ./validation-results
+
+          ./pluginval/pluginval.exe \
+            --strictness-level 5 \
+            --validate-in-process \
+            --output-dir ./validation-results \
+            --validate "$VST3_PATH" 2>&1 | \
+            tee ./validation-results/console-output.txt
+
+          if [ ${PIPESTATUS[0]} -eq 0 ]; then
+            echo "validation_status=passed" >> $GITHUB_OUTPUT
+          else
+            echo "validation_status=failed" >> $GITHUB_OUTPUT
+          fi
+
+          exit 0
+
+      - name: Upload Validation Results
+        uses: actions/upload-artifact@v4
+        if: ${{ always() && inputs.run-pluginval }}
+        with:
+          name: validation-results-${{ inputs.arch }}
+          path: ./validation-results/
+
+      - name: Add Validation Summary
+        if: ${{ always() && inputs.run-pluginval }}
+        shell: bash
+        run: |
+          STATUS="${{ steps.validate.outputs.validation_status }}"
+          ARCH="${{ inputs.arch }}"
+
+          echo "## VST3 Plugin Validation Results (${ARCH})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          case "$STATUS" in
+            passed)      echo "### ✅ Validation Passed" ;;
+            failed)      echo "### ❌ Validation Failed" ;;
+            no_plugin)   echo "### ⚠️ VST3 Plugin Not Found" ;;
+            no_pluginval) echo "### ⚠️ Pluginval Not Found" ;;
+            *)           echo "### ⚠️ No Results" ;;
+          esac >> $GITHUB_STEP_SUMMARY
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f "./validation-results/console-output.txt" ]; then
+            echo "#### Validation Report (first 50 lines):" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            head -n 50 ./validation-results/console-output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📦 Full validation results available in artifacts." >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail Build on Validation Failure
+        if: ${{ always() && inputs.run-pluginval }}
+        shell: bash
+        run: |
+          STATUS="${{ steps.validate.outputs.validation_status }}"
+          case "$STATUS" in
+            failed|no_plugin|no_pluginval)
+              echo "Build failed: plugin validation status = $STATUS"
+              exit 1
+              ;;
+          esac
+          echo "Validation passed successfully"
+
+      # -----------------------------------------------------------------------
+      # Package (only when a ref-name is provided, i.e. release builds)
+      # -----------------------------------------------------------------------
+      - name: Package VST3
+        if: ${{ inputs.ref-name != '' }}
+        shell: pwsh
+        run: |
+          $version = "${{ inputs.ref-name }}" -replace '^v', ''
+          $arch    = "${{ inputs.arch }}".ToLower()
+          $zipName = "PHU-SPLITTER-windows-${arch}-${version}.zip"
+
+          New-Item -ItemType Directory -Force -Path dist    | Out-Null
+          New-Item -ItemType Directory -Force -Path staging | Out-Null
+
+          $vst3 = Get-ChildItem -Recurse `
+            -Path $env:BUILD_DIR `
+            -Filter "*.vst3" -Directory | Select-Object -First 1
+
+          Copy-Item -Path $vst3.FullName -Destination "staging" -Recurse
+          Compress-Archive -Path "staging\*" -DestinationPath "dist\$zipName" -Force
+          Write-Host "Created dist\$zipName"
+
+      - name: Upload VST3 Artifact
+        if: ${{ inputs.upload-artifact }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: dist/*.zip

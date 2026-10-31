@@ -1,48 +1,45 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.28)
 project(phu-splitter VERSION 0.5.0 LANGUAGES C CXX)
 
 # Full version string with pre-release identifier for alpha/beta releases
 set(PHU_SPLITTER_VERSION_SUFFIX "-alpha")
 set(PHU_SPLITTER_FULL_VERSION "${PROJECT_VERSION}${PHU_SPLITTER_VERSION_SUFFIX}")
 
-set(CMAKE_CXX_STANDARD 17)
+# Global settings (before fetching, so they also apply to fetched dependencies)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-# JUCE
-# Build JUCE extras/examples OFF for faster builds
-set(JUCE_BUILD_EXTRAS OFF CACHE BOOL "Build JUCE Extras")
-set(JUCE_BUILD_EXAMPLES OFF CACHE BOOL "Build JUCE Examples")
+# Intel MKL Configuration (optional)
+# Works with either:
+# 1) NuGet package layout: .../intelmkl.static.win-x64/<version>/build/native
+# 2) oneAPI layout:        .../oneapi/mkl/latest
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+option(USE_INTEL_MKL "Use Intel MKL for FFT acceleration" ON)
+set(MKLROOT "" CACHE PATH "Path to MKL root (NuGet build/native or oneAPI mkl root)")
 
-set(JUCE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/JUCE" CACHE PATH "Path to JUCE root")
-if(NOT EXISTS "${JUCE_ROOT}/CMakeLists.txt")
-    message(FATAL_ERROR "JUCE submodule not found. Run: git submodule update --init --recursive")
+include(ConfigureIntelMKL)
+
+if(USE_INTEL_MKL)
+    configure_intel_mkl(PHU_MKL)
 endif()
-add_subdirectory("${JUCE_ROOT}")
 
-set(PHU_AUDIO_LIB_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/phu-audio-lib" CACHE PATH "Path to PhuAudioLib root")
-if(NOT EXISTS "${PHU_AUDIO_LIB_ROOT}/CMakeLists.txt")
-    message(FATAL_ERROR "PhuAudioLib submodule not found. Run: git submodule update --init --recursive")
-endif()
-add_subdirectory("${PHU_AUDIO_LIB_ROOT}")
+# JUCE feature flags and build options; included before the fetch so that the
+# options and compile definitions also reach JUCE and phu-audio-lib targets.
+include(cmake/juce_config.cmake)
 
-# PhuNetworkLib and PhuAudioLib use JUCE headers but are not JUCE targets.
-# Provide include directories and essential definitions so the headers compile
-# without triggering a second JUCE module build.
-target_include_directories(PhuNetworkLib SYSTEM PUBLIC ${JUCE_ROOT}/modules)
-target_compile_definitions(PhuNetworkLib PUBLIC
-    JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1
-    JUCE_MODULE_AVAILABLE_juce_core=1
-    JUCE_MODULE_AVAILABLE_juce_gui_basics=1
-    JUCE_MODULE_AVAILABLE_juce_graphics=1
-    JUCE_MODULE_AVAILABLE_juce_events=1
-    JUCE_MODULE_AVAILABLE_juce_data_structures=1
-    JUCE_MODULE_AVAILABLE_juce_dsp=1
-    JUCE_MODULE_AVAILABLE_juce_audio_basics=1
-    JUCE_USE_CURL=0
-    JUCE_WEB_BROWSER=0
-)
+# Fetch dependencies (reusable helpers in cmake/PhuDependencies.cmake)
+include(PhuDependencies)
+phu_fetch_juce(TAG 8.0.15)
+phu_fetch_audio_lib(TAG main)
 
-# PhuNetworkLib must be position-independent since phu-splitter builds as a shared library (VST3)
-set_target_properties(PhuNetworkLib PROPERTIES POSITION_INDEPENDENT_CODE ON)
+# Warnings/sanitizers/coverage; included after the fetch so they only apply to this project
+include(cmake/compiler_flags.cmake)
+
+# PhuNetworkLib's .cpp files include juce_core headers; link the JUCE
+# target that the parent project already provides.
+target_link_libraries(PhuNetworkLib PUBLIC juce::juce_core)
 
 add_subdirectory(src)

@@ -3,11 +3,31 @@
 Contributions are welcome.
 
 1. Fork and branch from `main`
-2. Follow existing C++17/JUCE code style
+2. Follow existing C++20/JUCE code style
 3. No memory allocation, system calls, or locks on the audio thread
 4. Verify the project builds and passes pluginval before opening a PR
 
 **Bug reports** — please include DAW name/version, OS, and reproduction steps in a [GitHub Issue](https://github.com/huberp/phu-splitter/issues).
+
+---
+
+## Building
+
+Requires CMake 3.28+ and a C++20 compiler. JUCE (8.0.15) and phu-audio-lib are fetched by CMake during the first configure (network access required); there are no git submodules. They are checked out into `JUCE/` and `phu-audio-lib/` (git-ignored).
+
+```bash
+cmake --list-presets=all                                   # all presets
+cmake --preset windows-x64-vst3-release                    # configure (or linux-x64-vst3-release, macos-arm64-release, ...)
+cmake --build --preset windows-x64-vst3-release-build      # build
+```
+
+Build output goes to `build/<preset-name>/`. macOS presets build VST3 and AU; the formats are controlled by the `PHU_PLUGIN_FORMATS` cache variable.
+
+Additional options and presets:
+- `-DENABLE_STRICT_WARNINGS=ON` — strict compiler warnings for this project's code (not for fetched dependencies)
+- `-DUSE_INTEL_MKL=OFF` — don't use Intel MKL for the FFT (default `ON`; falls back to JUCE's FFT when MKL isn't found). Set `MKLROOT` to point to an MKL install; on Windows the NuGet cache is detected automatically
+- `--preset sanitizers` / `--preset sanitizers-build` — Address + Undefined Behavior sanitizers
+- `--preset coverage` / `--preset coverage-build` — coverage instrumentation
 
 ---
 
@@ -31,3 +51,4 @@ Contributions are welcome.
 | `src/PresetStrip.cpp/.h` | Inline preset navigation UI |
 | `lib/NoteToFreq.h` | Musical note name → frequency converter |
 | `lib/` | Event system library (see `lib/README.md`) |
+| `cmake/ConfigureIntelMKL.cmake` | Optional Intel MKL FFT acceleration |
