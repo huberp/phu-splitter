@@ -37,9 +37,9 @@ This repo is set up for CMake presets.
 The build script automatically locates cmake.exe in Visual Studio installations.
 
 **Manual CMake:**
-- Configure: `cmake --preset vs2026-x64`
-- Build Debug: `cmake --build --preset debug`
-- Build Release: `cmake --build --preset release`
+- Configure: `cmake --preset windows-x64-vst3-release`
+- Build: `cmake --build --preset windows-x64-vst3-release-build`
+- Debug: `cmake --preset windows-x64-vst3-debug` then `cmake --build --preset windows-x64-vst3-debug-build`
 
 ### Linux
 
@@ -48,11 +48,22 @@ See [docs/LINUX_BUILD.md](docs/LINUX_BUILD.md) for detailed instructions.
 Quick start:
 ```bash
 sudo bash scripts/install-linux-deps.sh  # Install dependencies
-cmake --preset linux-release              # Configure
-cmake --build --preset linux-build        # Build
+cmake --preset linux-x64-vst3-release         # Configure
+cmake --build --preset linux-x64-vst3-release-build   # Build
 ```
 
-The target built by the presets is `phu-splitter_VST3`.
+### macOS
+
+```bash
+cmake --preset macos-arm64-release           # Configure (use macos-x64-release on Intel)
+cmake --build --preset macos-arm64-release-build   # Builds VST3 and AU
+```
+
+Run `cmake --list-presets=all` to see all available presets.
+
+JUCE (8.0.15) and phu-audio-lib are fetched automatically by CMake during the first configure (no submodules; network access required). CMake 3.28 or newer is required.
+
+The targets built by the presets are `phu-splitter_VST3` (and `phu-splitter_AU` on macOS).
 
 ## Audio Processing
 

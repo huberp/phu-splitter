@@ -3,6 +3,10 @@ build/
 cmake-build-*/
 _codeql_build_dir/
 
+# Fetched by CMake (FetchContent)
+JUCE/
+phu-audio-lib/
+
 # IDE directories
 .vs/
 .vscode/
@@ -12,3 +16,8 @@ _codeql_build_dir/
 .DS_Store
 Thumbs.db
 _codeql_detected_source_root
+
+# Act Runner — secrets locais
+.secrets
+.env.local
+.env.production

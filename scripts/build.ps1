@@ -20,7 +20,8 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host "`n=== Building phu-splitter ($Config) ===`n" -ForegroundColor Cyan
 
-$buildDir = "build\vs2026-x64"
+$presetName = if ($Config -eq "Debug") { "windows-x64-vst3-debug" } else { "windows-x64-vst3-release" }
+$buildDir = "build\$presetName"
 
 # Clean if requested
 if ($Clean) {
@@ -28,10 +29,10 @@ if ($Clean) {
     Remove-Item -Recurse -Force $buildDir -ErrorAction SilentlyContinue
 }
 
-# Configure if needed
+# Configure if needed (fetches JUCE and phu-audio-lib on the first run; network required)
 if (-not (Test-Path "$buildDir\CMakeCache.txt")) {
     Write-Host "Configuring CMake project..." -ForegroundColor Cyan
-    & $cmake -B $buildDir -G "Visual Studio 18 2026" -A x64
+    & $cmake --preset $presetName
     if ($LASTEXITCODE -ne 0) {
         Write-Error "CMake configuration failed"
         exit 1
@@ -40,7 +41,7 @@ if (-not (Test-Path "$buildDir\CMakeCache.txt")) {
 
 # Build
 Write-Host "Building..." -ForegroundColor Cyan
-& $cmake --build $buildDir --config $Config
+& $cmake --build --preset "$presetName-build"
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Build failed"
     exit 1

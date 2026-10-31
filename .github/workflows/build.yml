@@ -13,12 +13,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
       - name: Configure CMake
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+        run: cmake --preset windows-x64-vst3-release
       - name: Build
-        run: cmake --build build --config Release
+        run: cmake --build --preset windows-x64-vst3-release-build
 
       - name: Download pluginval
         shell: pwsh
@@ -38,7 +36,7 @@ jobs:
           set +e  # Don't exit on error, we want to capture the result
 
           # Find the VST3 plugin (JUCE uses British spelling "artefacts")
-          VST3_PATH=$(find build/src/phu-splitter_artefacts/Release/VST3 \
+          VST3_PATH=$(find build/windows-x64-vst3-release/src/phu-splitter_artefacts/Release/VST3 \
             -name "*.vst3" -type d | head -n 1)
 
           if [ -z "$VST3_PATH" ]; then
@@ -147,11 +145,9 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     - name: Install Dependencies
       run: sudo bash scripts/install-linux-deps.sh
     - name: Configure CMake
-      run: cmake --preset linux-release
+      run: cmake --preset linux-x64-vst3-release
     - name: Build
-      run: cmake --build --preset linux-build
+      run: cmake --build --preset linux-x64-vst3-release-build
